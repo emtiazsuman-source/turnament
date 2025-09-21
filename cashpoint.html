@@ -430,7 +430,7 @@
             `;
             document.getElementById('profile-form').addEventListener('submit', handleProfileSave);
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
         
@@ -458,7 +458,7 @@
             document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/pin-change'));
             document.getElementById('forgot-pin-btn').addEventListener('click', () => navigateTo('/pin-forgot'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
 
@@ -522,7 +522,7 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
                 showMessage(result.message);
-                navigateTo('/'); 
+                navigateTo('/cashpoint'); 
             } catch (error) {
                 showMessage(error.message);
             } finally {
@@ -1324,7 +1324,7 @@
                 }
 
                 showMessage(result.message);
-                navigateTo('/');
+                navigateTo('/cashpoint');
 
             } catch (error) {
                 console.error("Transfer request failed:", error);
@@ -1351,7 +1351,7 @@
             document.getElementById('bkash-btn').addEventListener('click', () => showTransactionForm('bkash'));
             document.getElementById('nagad-btn').addEventListener('click', () => showTransactionForm('nagad'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
         
@@ -1459,7 +1459,7 @@
             });
 
             findRecipientBtn.addEventListener('click', findRecipientAndRenderFormStep2);
-            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/'));
+            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/cashpoint'));
         }
 
         async function findRecipientAndRenderFormStep2() {
@@ -2335,7 +2335,7 @@
             }
             
             if (user && ['/login', '/signup'].includes(path)) {
-                 history.replaceState(null, null, '/');
+                 history.replaceState(null, null, '/cashpoint');
                  router();
                  return;
             }
@@ -2379,6 +2379,7 @@
                         renderStatementPage(transactions);
                     }
                     break;
+                case '/cashpoint':
                 case '/dashboard':
                 case '/':
                     if(user) {
@@ -2418,8 +2419,8 @@
                     if(user) renderChangePinForm();
                     break;
                 default: 
-                    // যদি কোন লিঙ্ক না মিলে, হোম পেজে পাঠিয়ে দিন
-                    navigateTo('/');
+                    // যদি কোন লিঙ্ক না মিলে, CashPoint হোম পেজে পাঠিয়ে দিন
+                    navigateTo('/cashpoint');
                     break;
             }
         };
