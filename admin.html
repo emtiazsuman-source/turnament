@@ -233,6 +233,9 @@
         let isAdmin = false;
         // Track when admin status is known to avoid premature redirects
         let isAdminKnown = false;
+        // Base path for app when hosted under a subpath
+        const basePath = '/cashpoint';
+        const adminRoot = `${basePath}/admin`;
 
         let appConfig = {
             charges: {
@@ -336,21 +339,21 @@
             const user = auth.currentUser;
 
             // Not logged in -> go to login page
-            if (!user && !['/login', '/signup'].includes(path)) {
-                history.replaceState(null, null, '/login');
+            if (!user && ![`${basePath}/login`, `${basePath}/signup`].includes(path)) {
+                history.replaceState(null, null, `${basePath}/login`);
                 renderLandingPage('email', 'login');
                 return;
             }
 
             // Logged in but on auth pages -> send to admin landing
-            if (user && ['/login', '/signup'].includes(path)) {
-                history.replaceState(null, null, '/admin');
+            if (user && [`${basePath}/login`, `${basePath}/signup`].includes(path)) {
+                history.replaceState(null, null, adminRoot);
                 router();
                 return;
             }
 
             switch (path) {
-                case '/admin':
+                case adminRoot:
                     if (!isAdminKnown) {
                         mainContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-600">Checking permissions...</div>';
                         return;
@@ -359,14 +362,14 @@
                         renderAdminDashboard();
                     } else {
                         // If user is not admin, send to main site
-                        history.replaceState(null, null, '/');
-                        window.location.href = '/';
+                        history.replaceState(null, null, basePath);
+                        window.location.href = basePath;
                     }
                     break;
                 default:
                     // Any other path should route back to /admin within this page
-                    if (path !== '/admin') {
-                        history.replaceState(null, null, '/admin');
+                    if (path !== adminRoot) {
+                        history.replaceState(null, null, adminRoot);
                         router();
                     }
                     break;
@@ -414,11 +417,11 @@
         });
 
         // Simple admin link handlers copied
-        logoutBtn.addEventListener('click', async () => { await handleLogout(); navigateTo('/login'); });
+        logoutBtn.addEventListener('click', async () => { await handleLogout(); navigateTo(`${basePath}/login`); });
         menuBtn.addEventListener('click', handleMenuClick);
-        if (gamingBtn) { gamingBtn.addEventListener('click', () => { window.location.href = '/'; }); }
-        if (homeBtn) { homeBtn.addEventListener('click', () => navigateTo('/')); }
-        if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { navigateTo('/'); menuSidebar.classList.remove('open'); }); }
+        if (gamingBtn) { gamingBtn.addEventListener('click', () => { window.location.href = basePath; }); }
+        if (homeBtn) { homeBtn.addEventListener('click', () => navigateTo(basePath)); }
+        if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { navigateTo(basePath); menuSidebar.classList.remove('open'); }); }
 
         async function handleLogout() {
             try { await signOut(auth); showMessage("আপনি সফলভাবে লগআউট করেছেন।"); } catch (e) { showMessage("লগআউট ব্যর্থ হয়েছে।"); }
