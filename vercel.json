@@ -5,10 +5,6 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/",
-      "destination": "/turnament.html"
-    },
-    {
       "source": "/login",
       "destination": "/login.html"
     },
@@ -22,23 +18,19 @@
     },
     {
       "source": "/turnament",
-      "destination": "/turnament.html"
+      "destination": "/index.html"
     },
     {
       "source": "/admin-t",
-      "destination": "/turnament.html"
+      "destination": "/index.html"
     },
     {
       "source": "/cashpoint",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/cashpoint/:path*",
-      "destination": "/index.html"
+      "destination": "/cashpoint.html"
     },
     {
       "source": "/:path((?!api/).*)",
-      "destination": "/turnament.html"
+      "destination": "/index.html"
     }
   ]
 }
