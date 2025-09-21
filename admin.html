@@ -231,6 +231,8 @@
         let unsubscribeFromConfig = null;
         let recipientData = {};
         let isAdmin = false;
+        // Track when the admin status has been determined from Firestore
+        let isAdminKnown = false;
 
         let appConfig = {
             charges: {
@@ -332,24 +334,42 @@
         const router = async () => {
             const path = window.location.pathname;
             const user = auth.currentUser;
+
+            // Not logged in -> go to login
             if (!user && !['/login', '/signup'].includes(path)) {
                 history.replaceState(null, null, '/login');
                 renderLandingPage('email', 'login');
                 return;
             }
+
+            // Logged in but on auth pages -> send to admin landing
             if (user && ['/login', '/signup'].includes(path)) {
-                history.replaceState(null, null, '/');
+                history.replaceState(null, null, '/admin');
                 router();
                 return;
             }
+
             switch (path) {
                 case '/admin':
-                    if (isAdmin) renderAdminDashboard();
-                    else if(user) navigateTo('/');
+                    // Wait until we know admin status to decide
+                    if (!isAdminKnown) {
+                        mainContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-600">Checking permissions...</div>';
+                        return;
+                    }
+                    if (isAdmin) {
+                        renderAdminDashboard();
+                    } else {
+                        // Non-admin: send to main app home
+                        history.replaceState(null, null, '/');
+                        window.location.href = '/';
+                    }
                     break;
                 default:
-                    // For simplicity, send other paths home
-                    navigateTo('/');
+                    // Any other path in this file should route back to /admin
+                    if (path !== '/admin') {
+                        history.replaceState(null, null, '/admin');
+                        router();
+                    }
                     break;
             }
         };
@@ -366,6 +386,7 @@
                         const profileData = docSnap.data();
                         if (profileData.isAdmin === undefined) { updateDoc(profileDocRef, { isAdmin: false }); return; }
                         isAdmin = profileData.isAdmin;
+                        isAdminKnown = true;
                         adminSettingsMenuBtn.classList.toggle('hidden', !isAdmin);
                         if (tAdminMenuBtn) tAdminMenuBtn.classList.toggle('hidden', !isAdmin);
                         renderSidebar(profileData);
@@ -377,6 +398,7 @@
                 bottomNav.classList.add('hidden');
                 currentUser = null;
                 isAdmin = false;
+                isAdminKnown = false;
                 if (unsubscribeFromProfile) unsubscribeFromProfile();
                 if (unsubscribeFromRequests) unsubscribeFromRequests();
                 if (unsubscribeFromTransfers) unsubscribeFromTransfers();
