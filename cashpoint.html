@@ -2385,25 +2385,33 @@
         
         // --- রাউটিং এর জন্য নতুন কোড শুরু ---
 
+        // Use hash-based routing to avoid server 404s and AMP history restrictions
+        const getCurrentPath = () => {
+            const hash = window.location.hash || '';
+            const path = hash.startsWith('#') ? hash.slice(1) : hash;
+            return path || '/';
+        };
+
         const navigateTo = (path) => {
-            if (window.location.pathname !== path) {
-                history.pushState(null, null, path);
+            const current = getCurrentPath();
+            if (current !== path) {
+                window.location.hash = path;
                 router();
             }
         };
 
         const router = async () => {
-            const path = window.location.pathname;
+            const path = getCurrentPath();
             const user = auth.currentUser;
 
             if (!user && !['/login', '/signup'].includes(path)) {
-                history.replaceState(null, null, '/login');
+                window.location.hash = '/login';
                 renderLandingPage('email', 'login');
                 return;
             }
             
             if (user && ['/login', '/signup'].includes(path)) {
-                 history.replaceState(null, null, '/');
+                 window.location.hash = '/';
                  router();
                  return;
             }
@@ -2489,7 +2497,7 @@
             }
         };
         
-        window.addEventListener('popstate', router);
+        window.addEventListener('hashchange', router);
         
         // --- রাউটিং এর জন্য নতুন কোড শেষ ---
 
@@ -2514,7 +2522,7 @@
                         renderSidebar(profileData);
                         // Redirect to pin-create if no PIN set (pinHash missing or 0)
                         const needsPin = !(typeof profileData.pinHash === 'number' && profileData.pinHash !== 0);
-                        const currentPath = window.location.pathname;
+                        const currentPath = getCurrentPath();
                         if (needsPin && !hasPinRedirect && currentPath !== '/pin-create') {
                             hasPinRedirect = true;
                             navigateTo('/pin-create');
