@@ -141,7 +141,9 @@ export default async function handler(req, res) {
     if (maxPlayers > 0 && currentCount >= maxPlayers) {
       return res.status(400).json({ message: 'টুর্নামেন্ট পূর্ণ।' });
     }
-    if (!Number.isFinite(entryFee) || entryFee <= 0) {
+    
+    // ✅ **সংশোধন #১:** এখানে <= 0 থেকে < 0 করা হয়েছে
+    if (!Number.isFinite(entryFee) || entryFee < 0) {
       return res.status(400).json({ message: 'অবৈধ এন্ট্রি ফি।' });
     }
 
@@ -162,8 +164,11 @@ export default async function handler(req, res) {
       if (p.status !== 'active') {
         throw new Error('এই টুর্নামেন্টটি বর্তমানে সক্রিয় নয়।');
       }
+      
       const fee = Number(cd.entryFee || 0);
-      if (!Number.isFinite(fee) || fee <= 0) {
+      
+      // ✅ **সংশোধন #২:** এখানেও <= 0 থেকে < 0 করা হয়েছে
+      if (!Number.isFinite(fee) || fee < 0) {
         throw new Error('অবৈধ এন্ট্রি ফি।');
       }
 
@@ -172,8 +177,10 @@ export default async function handler(req, res) {
         throw new Error('আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই।');
       }
 
-      // Deduct balance and add participant
-      tx.update(userRef, { balance: balance - fee });
+      // Deduct balance only if fee is greater than 0
+      if (fee > 0) {
+        tx.update(userRef, { balance: balance - fee });
+      }
 
       // Add user transaction entry for tournament join
       const userTxRef = userRef.collection('transactions').doc();
