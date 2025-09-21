@@ -33,6 +33,10 @@
       "destination": "/cashpoint.html"
     },
     {
+      "source": "/cashpoint/",
+      "destination": "/cashpoint.html"
+    },
+    {
       "source": "/add-money",
       "destination": "/cashpoint.html"
     },
