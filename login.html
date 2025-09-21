@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CashPoint - লগইন</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bg-cashpoint-pink { background-color: #E2136E; }
+    .text-cashpoint-pink { color: #E2136E; }
+    .gradient-bg { background: linear-gradient(135deg, #FF69B4, #E2136E); }
+    .form-input { background-color: #EDF2FE; }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div class="gradient-bg text-white py-6 px-6 text-center">
+      <img src="https://placehold.co/64x64/E2136E/FFFFFF?text=CP" alt="CashPoint" class="w-16 h-16 rounded-full mx-auto mb-2 bg-white"/>
+      <h1 class="text-xl font-bold">CashPoint</h1>
+      <p class="text-white/90 text-sm">আপনার অ্যাকাউন্টে লগইন করুন</p>
+    </div>
+    <div class="p-6">
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="email" class="block text-sm text-gray-600 mb-1">ইমেইল</label>
+          <input id="email" type="email" placeholder="you@example.com" class="w-full p-3 form-input border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" required />
+        </div>
+        <div>
+          <label for="password" class="block text-sm text-gray-600 mb-1">পাসওয়ার্ড</label>
+          <input id="password" type="password" placeholder="********" class="w-full p-3 form-input border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" required />
+        </div>
+        <button type="submit" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl transition">সাইন ইন</button>
+      </form>
+      <div class="flex items-center justify-between mt-4 text-sm">
+        <a href="/forgot-password" class="text-cashpoint-pink hover:underline">পাসওয়ার্ড ভুলে গেছেন?</a>
+        <a href="/signup" class="text-cashpoint-pink hover:underline">অ্যাকাউন্ট তৈরি করুন</a>
+      </div>
+      <div class="my-4 flex items-center gap-3">
+        <div class="h-px bg-gray-200 flex-1"></div>
+        <span class="text-xs text-gray-400">অথবা</span>
+        <div class="h-px bg-gray-200 flex-1"></div>
+      </div>
+      <button id="google-btn" class="w-full py-3 bg-[#FBBC05] hover:bg-[#e5aa04] text-black font-semibold rounded-full flex items-center justify-center gap-2 shadow">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-5 h-5">
+          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"/>
+          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.817C14.655 16.108 18.961 14 24 14c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.197l-6.191-5.238C29.104 35.091 26.671 36 24 36c-5.202 0-9.62-3.317-11.282-7.946l-6.53 5.027C9.49 39.556 16.227 44 24 44z"/>
+          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.79 2.231-2.231 4.166-4.095 5.565.001-.001 6.191 5.238 6.191 5.238C39.392 35.63 44 30 44 24c0-1.341-.138-2.651-.389-3.917z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+      <p id="msg" class="mt-4 text-center text-sm text-gray-600"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
+      authDomain: "cashpoint-f8b51.firebaseapp.com",
+      projectId: "cashpoint-f8b51",
+      storageBucket: "cashpoint-f8b51.firebasestorage.app",
+      messagingSenderId: "50891144664",
+      appId: "1:50891144664:web:e90f63977c95c86c04c6ad",
+      measurementId: "G-WJXSMFBEE6"
+    };
+    const appId = "cashpoint-f8b51";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const msg = (t) => document.getElementById('msg').textContent = t || '';
+
+    onAuthStateChanged(auth, (user) => { if (user) window.location.replace('/'); });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg('সাইন ইন হচ্ছে...');
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.replace('/');
+      } catch (err) {
+        msg('সাইন ইন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+      }
+    });
+
+    document.getElementById('google-btn').addEventListener('click', async () => {
+      msg('Google সাইন ইন হচ্ছে...');
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          await setDoc(ref, {
+            name: user.displayName || 'New User',
+            fullName: user.displayName || 'New User',
+            email: user.email || '',
+            balance: 0.00,
+            mobile: '',
+            dob: '',
+            isAdmin: false,
+            pinHash: 0
+          }, { merge: true });
+        }
+        window.location.replace('/');
+      } catch (err) {
+        msg('Google সাইন ইন ব্যর্থ হয়েছে।');
+      }
+    });
+  </script>
+</body>
+</html>

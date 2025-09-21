@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CashPoint - মোবাইল ব্যাংকিং</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+        }
+        .bg-cashpoint-pink {
+            background-color: #E2136E;
+        }
+        .text-cashpoint-pink {
+            color: #E2136E;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #FF69B4, #E2136E);
+        }
+        .sidebar {
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .balance-container {
+            position: relative;
+        }
+        .balance-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+            border-radius: 0.75rem;
+        }
+        .balance-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        /* New styles for admin panel tabs */
+        .tab-btn.add-money-active {
+            border-color: #E2136E;
+            color: #E2136E;
+        }
+        .tab-btn.transfer-money-active {
+            border-color: #3B82F6; /* A blue color for contrast */
+            color: #3B82F6;
+        }
+        .add-money-card {
+            border-left: 4px solid #E2136E;
+        }
+        .transfer-money-card {
+            border-left: 4px solid #3B82F6;
+        }
+        /* Hide scrollbar for all relevant areas */
+        #main-content::-webkit-scrollbar,
+        #transaction-list::-webkit-scrollbar,
+        #admin-content-area::-webkit-scrollbar,
+        #menu-sidebar ul::-webkit-scrollbar {
+            display: none;
+        }
+        #main-content,
+        #transaction-list,
+        #admin-content-area,
+        #menu-sidebar ul {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Vercel Web Analytics -->
+    <script defer src="/_vercel/insights/script.js"></script>
+    </head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen">
+
+    <div id="app-container" class="relative w-full max-w-sm bg-white shadow-xl rounded-2xl overflow-hidden h-[95vh] max-h-[850px] flex flex-col">
+        <div id="message-box" class="absolute top-4 left-1/2 -translate-x-1/2 z-50 p-3 rounded-lg text-sm transition-all duration-300 transform scale-0" style="background-color: #1a1a1a; color: white;"></div>
+
+        <header id="header" class="w-full gradient-bg text-white py-4 px-6 flex items-center justify-between shadow-md flex-shrink-0">
+            <h1 class="text-2xl font-bold">CashPoint</h1>
+            <div id="user-info-header" class="flex items-center space-x-2">
+                <span id="header-user-name" class="font-medium text-sm"></span>
+            </div>
+        </header>
+
+        <main id="main-content" class="flex-grow flex flex-col p-4 overflow-y-auto">
+        </main>
+
+        <aside id="menu-sidebar" class="fixed top-0 right-0 h-full w-3/4 bg-white shadow-lg z-50 sidebar flex flex-col">
+            <div class="p-6 bg-cashpoint-pink text-white flex items-center space-x-4 rounded-b-xl">
+                <div id="sidebar-initial" class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-cashpoint-pink text-xl font-bold">S</div>
+                <div>
+                    <h3 id="sidebar-user-name" class="text-xl font-semibold"></h3>
+                    <p id="sidebar-user-mobile" class="text-sm"></p>
+                </div>
+            </div>
+            <ul class="flex-grow flex flex-col p-4 space-y-2 overflow-y-auto">
+                <li id="home-btn-menu" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-home text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">হোম</span>
+                </li>
+                <li id="statement-btn-menu" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-chart-bar text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">স্টেটমেন্ট</span>
+                </li>
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-exclamation-triangle text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">লিমিট</span>
+                </li>
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-ticket-alt text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">কুপন</span>
+                </li>
+                <li id="update-info-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-sync-alt text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">তথ্য হালনাগাদ</span>
+                </li>
+                
+                <li id="my-profile-menu-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-user text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">আমার প্রোফাইল</span>
+                </li>
+                
+                <li id="pin-setup-menu-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-key text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">পিন সেটআপ</span>
+                </li>
+                
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-user-edit text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">নমিনির তথ্য হালনাগাদ</span>
+                </li>
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-user-friends text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">রেফার ক্যাশপয়েন্ট অ্যাপ</span>
+                </li>
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-map-marker-alt text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">ক্যাশপয়েন্ট ম্যাপ</span>
+                </li>
+                <li class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-info-circle text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">ক্যাশপয়েন্ট নিয়ে জানুন</span>
+                </li>
+                <li class="flex-grow"></li>
+                <li id="admin-settings-menu-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors border-t mt-2 pt-4 hidden">
+                    <i class="fas fa-cog text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">অ্যাডমিন প্যানেল</span>
+                </li>
+                <li id="t-admin-menu-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors hidden">
+                    <i class="fas fa-trophy text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">T-অ্যাডমিন প্যানেল</span>
+                </li>
+                <li id="logout-btn" class="p-3 flex items-center space-x-4 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors border-t pt-4">
+                    <i class="fas fa-sign-out-alt text-xl text-cashpoint-pink"></i>
+                    <span class="text-gray-700 font-medium">লগআউট</span>
+                </li>
+            </ul>
+        </aside>
+
+        <footer id="bottom-nav" class="w-full bg-white shadow-t-xl rounded-t-2xl py-3 px-4 flex justify-around items-center border-t border-gray-200 flex-shrink-0 hidden">
+            <div id="home-btn" class="flex flex-col items-center text-cashpoint-pink cursor-pointer">
+                <i class="fas fa-home text-2xl"></i>
+                <span class="text-xs mt-1">হোম</span>
+            </div>
+            <div id="gaming-btn" class="flex flex-col items-center text-gray-500 cursor-pointer">
+                <i class="fas fa-gamepad text-2xl"></i>
+                <span class="text-xs mt-1">গেমিং</span>
+            </div>
+            <div class="flex flex-col items-center text-gray-500 cursor-pointer">
+                <i class="fas fa-search text-2xl"></i>
+                <span class="text-xs mt-1">সার্চ</span>
+            </div>
+            <div class="flex flex-col items-center text-gray-500 cursor-pointer">
+                <i class="fas fa-inbox text-2xl"></i>
+                <span class="text-xs mt-1">ইনবক্স</span>
+            </div>
+            <div id="menu-btn" class="flex flex-col items-center text-gray-500 cursor-pointer">
+                <i class="fas fa-bars text-2xl"></i>
+                <span class="text-xs mt-1">মেনু</span>
+            </div>
+        </footer>
+
+        <div id="transaction-details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+             <div id="modal-content" class="bg-white rounded-2xl w-11/12 max-w-sm p-5 space-y-4 relative transform transition-transform scale-95">
+                </div>
+        </div>
+        
+        <div id="loading-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-40 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-cashpoint-pink border-t-transparent"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, runTransaction, collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, deleteDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
+            authDomain: "cashpoint-f8b51.firebaseapp.com",
+            projectId: "cashpoint-f8b51",
+            storageBucket: "cashpoint-f8b51.firebasestorage.app",
+            messagingSenderId: "50891144664",
+            appId: "1:50891144664:web:e90f63977c95c86c04c6ad",
+            measurementId: "G-WJXSMFBEE6"
+        };
+        const appId = "cashpoint-f8b51";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let unsubscribeFromProfile = null;
+        let unsubscribeFromRequests = null;
+        let unsubscribeFromTransfers = null;
+        let unsubscribeFromConfig = null;
+        let recipientData = {};
+        let isAdmin = false;
+
+        let appConfig = {
+            charges: {
+                send: { percentage: 0, fixed: 0 },
+                transfer: { percentage: 0, fixed: 0 }
+            },
+            reserve: { bkash: 0, nagad: 0 },
+            paymentNumbers: { bkash: '', nagad: '' }
+        };
+
+        function subscribeToAppConfig() {
+            const configDocRef = doc(db, `artifacts/${appId}/admin_config/settings`);
+            if (unsubscribeFromConfig) unsubscribeFromConfig();
+            unsubscribeFromConfig = onSnapshot(configDocRef, (docSnap) => {
+                const data = docSnap.exists() ? docSnap.data() : {};
+                appConfig = {
+                    charges: {
+                        send: {
+                            percentage: (data.charges && data.charges.send && typeof data.charges.send.percentage === 'number') ? data.charges.send.percentage : 0,
+                            fixed: (data.charges && data.charges.send && typeof data.charges.send.fixed === 'number') ? data.charges.send.fixed : 0,
+                        },
+                        transfer: {
+                            percentage: (data.charges && data.charges.transfer && typeof data.charges.transfer.percentage === 'number') ? data.charges.transfer.percentage : 0,
+                            fixed: (data.charges && data.charges.transfer && typeof data.charges.transfer.fixed === 'number') ? data.charges.transfer.fixed : 0,
+                        }
+                    },
+                    reserve: {
+                        bkash: (data.reserve && typeof data.reserve.bkash === 'number') ? data.reserve.bkash : 0,
+                        nagad: (data.reserve && typeof data.reserve.nagad === 'number') ? data.reserve.nagad : 0,
+                    },
+                    paymentNumbers: {
+                        bkash: (data.paymentNumbers && typeof data.paymentNumbers.bkash === 'string') ? data.paymentNumbers.bkash : '',
+                        nagad: (data.paymentNumbers && typeof data.paymentNumbers.nagad === 'string') ? data.paymentNumbers.nagad : '',
+                    }
+                };
+            });
+        }
+
+        const mainContent = document.getElementById('main-content');
+        const headerUserName = document.getElementById('header-user-name');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const messageBox = document.getElementById('message-box');
+        const menuSidebar = document.getElementById('menu-sidebar');
+        const menuBtn = document.getElementById('menu-btn');
+        const appContainer = document.getElementById('app-container');
+        const sidebarUserName = document.getElementById('sidebar-user-name');
+        const sidebarUserMobile = document.getElementById('sidebar-user-mobile');
+        const sidebarInitial = document.getElementById('sidebar-initial');
+        const updateInfoBtn = document.getElementById('update-info-btn');
+        const homeBtn = document.getElementById('home-btn');
+        const homeBtnMenu = document.getElementById('home-btn-menu');
+        const statementBtnMenu = document.getElementById('statement-btn-menu');
+        const adminSettingsMenuBtn = document.getElementById('admin-settings-menu-btn');
+        const tAdminMenuBtn = document.getElementById('t-admin-menu-btn');
+        const bottomNav = document.getElementById('bottom-nav');
+        const pinSetupMenuBtn = document.getElementById('pin-setup-menu-btn');
+        const gamingBtn = document.getElementById('gaming-btn');
+        const myProfileMenuBtn = document.getElementById('my-profile-menu-btn');
+
+        function showMessage(text, duration = 3000) {
+            messageBox.textContent = text;
+            messageBox.classList.remove('scale-0');
+            messageBox.classList.add('scale-100');
+            setTimeout(() => {
+                messageBox.classList.remove('scale-100');
+                messageBox.classList.add('scale-0');
+            }, duration);
+        }
+
+        function showLoading(show) {
+            if (show) loadingOverlay.classList.remove('hidden');
+            else loadingOverlay.classList.add('hidden');
+        }
+
+        function handleMenuClick() { menuSidebar.classList.add('open'); }
+        document.addEventListener('click', (event) => {
+            if (menuSidebar.classList.contains('open') && !menuSidebar.contains(event.target) && !menuBtn.contains(event.target) && !updateInfoBtn.contains(event.target) && !pinSetupMenuBtn.contains(event.target)) {
+                menuSidebar.classList.remove('open');
+            }
+        });
+
+        function renderSidebar(profileData) {
+            const userName = profileData.name || profileData.fullName || 'ব্যবহারকারী';
+            const userInitial = userName ? userName.charAt(0).toUpperCase() : ' ';
+            sidebarUserName.textContent = userName;
+            sidebarUserMobile.textContent = '';
+            sidebarInitial.textContent = userInitial;
+        }
+
+        // Keep router and features identical to index; admins will navigate directly to /admin
+        const navigateTo = (path) => {
+            if (window.location.pathname !== path) {
+                history.pushState(null, null, path);
+                router();
+            }
+        };
+
+        const router = async () => {
+            const path = window.location.pathname;
+            const user = auth.currentUser;
+            if (!user && !['/login', '/signup'].includes(path)) {
+                history.replaceState(null, null, '/login');
+                renderLandingPage('email', 'login');
+                return;
+            }
+            if (user && ['/login', '/signup'].includes(path)) {
+                history.replaceState(null, null, '/');
+                router();
+                return;
+            }
+            switch (path) {
+                case '/admin':
+                    if (isAdmin) renderAdminDashboard();
+                    else if(user) navigateTo('/');
+                    break;
+                default:
+                    // For simplicity, send other paths home
+                    navigateTo('/');
+                    break;
+            }
+        };
+        window.addEventListener('popstate', router);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                bottomNav.classList.remove('hidden');
+                currentUser = user;
+                const profileDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
+                if (unsubscribeFromProfile) unsubscribeFromProfile();
+                unsubscribeFromProfile = onSnapshot(profileDocRef, (docSnap) => {
+                    if (docSnap.exists()){
+                        const profileData = docSnap.data();
+                        if (profileData.isAdmin === undefined) { updateDoc(profileDocRef, { isAdmin: false }); return; }
+                        isAdmin = profileData.isAdmin;
+                        adminSettingsMenuBtn.classList.toggle('hidden', !isAdmin);
+                        if (tAdminMenuBtn) tAdminMenuBtn.classList.toggle('hidden', !isAdmin);
+                        renderSidebar(profileData);
+                        router();
+                    }
+                });
+                subscribeToAppConfig();
+            } else {
+                bottomNav.classList.add('hidden');
+                currentUser = null;
+                isAdmin = false;
+                if (unsubscribeFromProfile) unsubscribeFromProfile();
+                if (unsubscribeFromRequests) unsubscribeFromRequests();
+                if (unsubscribeFromTransfers) unsubscribeFromTransfers();
+                if (unsubscribeFromConfig) unsubscribeFromConfig();
+                if (tAdminMenuBtn) tAdminMenuBtn.classList.add('hidden');
+                headerUserName.textContent = '';
+                sidebarUserName.textContent = '';
+                sidebarUserMobile.textContent = '';
+                sidebarInitial.textContent = '';
+                menuSidebar.classList.remove('open');
+                router();
+            }
+            showLoading(false);
+        });
+
+        // Simple admin link handlers copied
+        logoutBtn.addEventListener('click', async () => { await handleLogout(); navigateTo('/login'); });
+        menuBtn.addEventListener('click', handleMenuClick);
+        if (gamingBtn) { gamingBtn.addEventListener('click', () => { window.location.href = '/turnament'; }); }
+        if (homeBtn) { homeBtn.addEventListener('click', () => navigateTo('/')); }
+        if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { navigateTo('/'); menuSidebar.classList.remove('open'); }); }
+
+        async function handleLogout() {
+            try { await signOut(auth); showMessage("আপনি সফলভাবে লগআউট করেছেন।"); } catch (e) { showMessage("লগআউট ব্যর্থ হয়েছে।"); }
+        }
+
+        function renderLandingPage(){ mainContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-600">Login required</div>'; }
+        function renderAdminDashboard(){ mainContent.innerHTML = '<div class="p-4">Admin Dashboard Loaded</div>'; }
+    </script>
+</body>
+</html>

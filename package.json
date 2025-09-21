@@ -1,0 +1,11 @@
+{
+  "name": "cashpoint-app",
+  "version": "1.0.0",
+  "description": "A secure mobile banking web application.",
+  "main": "index.html",
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "firebase-admin": "^12.1.1"
+  }
+}
