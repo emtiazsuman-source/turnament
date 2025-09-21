@@ -29,6 +29,42 @@
       "destination": "/cashpoint.html"
     },
     {
+      "source": "/add-money",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/transfer-money",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/send-money",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/pin-setup",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/pin-create",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/pin-change",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/pin-forgot",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/myprofile",
+      "destination": "/cashpoint.html"
+    },
+    {
+      "source": "/statement",
+      "destination": "/cashpoint.html"
+    },
+    {
       "source": "/:path((?!api/).*)",
       "destination": "/index.html"
     }

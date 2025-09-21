@@ -522,7 +522,7 @@
             `;
 
             document.getElementById('setup-new-pin-btn').addEventListener('click', () => navigateTo('/pin-create'));
-            document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/change-pin'));
+            document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/pin-change'));
             document.getElementById('forgot-pin-btn').addEventListener('click', () => navigateTo('/pin-forgot'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
                 navigateTo('/');
@@ -547,7 +547,7 @@
             document.getElementById('back-to-pin-options-btn').addEventListener('click', () => navigateTo('/pin-setup'));
         }
 
-        // পিন পরিবর্তন করার ফর্ম (রুট: /change-pin)
+        // পিন পরিবর্তন করার ফর্ম (রুট: /pin-change)
         function renderChangePinForm() {
             mainContent.innerHTML = `
                 <div class="flex flex-col h-full p-4 space-y-6">
@@ -2479,7 +2479,7 @@
                 case '/pin-create':
                     if(user) renderSetupPinForm();
                     break;
-                case '/change-pin':
+                case '/pin-change':
                     if(user) renderChangePinForm();
                     break;
                 default: 
