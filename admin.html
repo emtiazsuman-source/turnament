@@ -416,7 +416,7 @@
         // Simple admin link handlers copied
         logoutBtn.addEventListener('click', async () => { await handleLogout(); navigateTo('/login'); });
         menuBtn.addEventListener('click', handleMenuClick);
-        if (gamingBtn) { gamingBtn.addEventListener('click', () => { window.location.href = '/turnament'; }); }
+        if (gamingBtn) { gamingBtn.addEventListener('click', () => { window.location.href = '/'; }); }
         if (homeBtn) { homeBtn.addEventListener('click', () => navigateTo('/')); }
         if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { navigateTo('/'); menuSidebar.classList.remove('open'); }); }
 

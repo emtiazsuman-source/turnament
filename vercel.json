@@ -21,12 +21,8 @@
       "destination": "/admin.html"
     },
     {
-      "source": "/turnament",
-      "destination": "/index.html"
-    },
-    {
       "source": "/admin-t",
-      "destination": "/admin-t.html"
+      "destination": "/index.html"
     },
     {
       "source": "/cashpoint",
