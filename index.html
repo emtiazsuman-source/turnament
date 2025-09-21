@@ -615,47 +615,9 @@
                     </div>
                     ${actionSectionHTML}
                 </div>
-
-                <div class="mt-2">
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <button class="toggle-room flex justify-between items-center w-full bg-slate-100 border border-slate-200 text-slate-800 font-semibold py-2 px-1 rounded-lg hover:bg-slate-200 transition">
-                            <span><i class="fas fa-info-circle text-slate-500 w-4 mr-1"></i>Room Details</span>
-                            <i class="fas fa-chevron-down transform transition-transform"></i>
-                        </button>
-                        <button class="toggle-prize flex justify-between items-center w-full bg-slate-100 border border-slate-200 text-slate-800 font-semibold py-2 px-1 rounded-lg hover:bg-slate-200 transition">
-                            <span><i class="fas fa-trophy text-yellow-500 w-4 mr-1"></i>Total Prize</span>
-                            <i class="fas fa-chevron-down transform transition-transform"></i>
-                        </button>
-                    </div>
-                    <div class="room-details hidden mt-2 text-sm bg-slate-50 border rounded-lg p-3">
-                        ${hasJoined ? `
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Room ID</span>
-                                <div class="flex items-center">
-                                    <code class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${contestDetails.roomId || '—'}</code>
-                                    <i onclick="copyToClipboard('${contestDetails.roomId || ''}')" class="fas fa-copy cursor-pointer text-gray-500 ml-2" title="Copy Room ID"></i>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Password</span>
-                                <div class="flex items-center">
-                                    <code class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${contestDetails.roomPass || '—'}</code>
-                                    <i onclick="copyToClipboard('${contestDetails.roomPass || ''}')" class="fas fa-copy cursor-pointer text-gray-500 ml-2" title="Copy Password"></i>
-                                </div>
-                            </div>
-                            <button class="submit-proof-btn mt-2 w-full bg-indigo-600 text-white font-semibold py-2 rounded-lg hover:bg-indigo-700 transition">প্রুফ দিন (ঐচ্ছিক)</button>
-                        </div>
-                        ` : `<div class="text-center text-sm text-gray-600">আপনি এখনো জয়েন করেননি</div>`}
-                    </div>
-                    <div class="prize-details hidden mt-2 text-sm bg-slate-50 border rounded-lg p-3">
-                        <div class="space-y-1">${prizeListHTML}</div>
-                    </div>
-                </div>
-
                 <div class="mt-3 rounded-lg bg-green-600 p-2 flex items-center justify-center text-white text-sm">
-                    <i class="far fa-clock mr-2"></i>
-                    <span class="font-semibold">STARTS IN -</span>
+                    <span class="mr-2">⏱️</span>
+                    <span class="font-semibold">STARTS IN:</span>
                     <span id="countdown-${post.id}" data-countdown-end="${startTime.getTime()}" class="font-bold ml-1">লোড হচ্ছে...</span>
                 </div>
             `;
