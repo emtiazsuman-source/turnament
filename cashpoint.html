@@ -497,7 +497,7 @@
             `;
             document.getElementById('profile-form').addEventListener('submit', handleProfileSave);
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
         
@@ -525,7 +525,7 @@
             document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/change-pin'));
             document.getElementById('forgot-pin-btn').addEventListener('click', () => navigateTo('/pin-forgot'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
 
@@ -589,7 +589,7 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
                 showMessage(result.message);
-                navigateTo('/'); 
+                navigateTo('/cashpoint'); 
             } catch (error) {
                 showMessage(error.message);
             } finally {
@@ -1005,7 +1005,7 @@
 
             const date = tx.timestamp ? tx.timestamp.toDate() : new Date();
             const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
             let statusText, statusColorClass;
             switch(tx.status) {
@@ -1039,7 +1039,7 @@
             
             const details = [
                 { label: 'বিস্তারিত:', value: tx.description },
-                { label: 'সময়:', value: `${time}, ${dateStr}` },
+                { label: 'সময়:', value: `${time} ${dateStr}` },
                 { label: 'চার্জ:', value: `৳ ${(tx.charge || 0).toFixed(2)}` },
                 { label: 'প্রেরকের ইমেইল:', value: tx.senderEmail || '-' },
                 { label: 'প্রাপকের ইমেইল:', value: tx.recipientEmail || '-' },
@@ -1391,7 +1391,7 @@
                 }
 
                 showMessage(result.message);
-                navigateTo('/');
+                navigateTo('/cashpoint');
 
             } catch (error) {
                 console.error("Transfer request failed:", error);
@@ -1418,7 +1418,7 @@
             document.getElementById('bkash-btn').addEventListener('click', () => showTransactionForm('bkash'));
             document.getElementById('nagad-btn').addEventListener('click', () => showTransactionForm('nagad'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
             });
         }
         
@@ -1493,7 +1493,7 @@
                 }
 
                 showMessage(result.message);
-                navigateTo('/');
+                navigateTo('/cashpoint');
 
 
             } catch (error) {
@@ -1526,7 +1526,7 @@
             });
 
             findRecipientBtn.addEventListener('click', findRecipientAndRenderFormStep2);
-            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/'));
+            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/cashpoint'));
         }
 
         async function findRecipientAndRenderFormStep2() {
@@ -1789,7 +1789,7 @@
                 }
 
                 showMessage(result.message);
-                navigateTo('/');
+                navigateTo('/cashpoint');
 
             } catch (error) {
                 console.error("Transaction failed:", error);
