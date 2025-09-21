@@ -2403,7 +2403,7 @@
             }
             
             if (user && ['/login', '/signup'].includes(path)) {
-                 history.replaceState(null, null, '/');
+                 history.replaceState(null, null, '/cashpoint');
                  router();
                  return;
             }
@@ -2417,7 +2417,7 @@
                     break;
                 case '/admin':
                     if (isAdmin) renderAdminDashboard();
-                    else if(user) navigateTo('/'); 
+                    else if(user) navigateTo('/cashpoint'); 
                     break;
                 case '/update-profile':
                     if (user) {
@@ -2446,6 +2446,7 @@
                     break;
                 case '/dashboard':
                 case '/':
+                case '/cashpoint':
                     if(user) {
                         const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
                         const docSnap = await getDoc(userDocRef);
@@ -2490,7 +2491,7 @@
                     break;
                 default: 
                     // যদি কোন লিঙ্ক না মিলে, হোম পেজে পাঠিয়ে দিন
-                    navigateTo('/');
+                    navigateTo('/cashpoint');
                     break;
             }
         };
@@ -2696,7 +2697,7 @@
             const backBtn = document.createElement('button');
             backBtn.className = 'w-full py-3 bg-gray-400 text-white font-bold rounded-xl shadow-lg';
             backBtn.textContent = 'ফিরে যান';
-            backBtn.onclick = () => navigateTo('/');
+            backBtn.onclick = () => navigateTo('/cashpoint');
             actions.append(editBtn, backBtn);
 
             mainContent.append(headerDiv, card, actions);
@@ -2736,11 +2737,11 @@
         });
 
         if (homeBtn) {
-            homeBtn.addEventListener('click', () => navigateTo('/'));
+            homeBtn.addEventListener('click', () => navigateTo('/cashpoint'));
         }
         if (homeBtnMenu) {
             homeBtnMenu.addEventListener('click', () => {
-                navigateTo('/');
+                navigateTo('/cashpoint');
                 menuSidebar.classList.remove('open');
             });
         }
