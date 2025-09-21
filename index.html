@@ -106,7 +106,6 @@
                 </div>
                 <div id="posts-container" class="space-y-4 compact"></div>
 
-                <!-- App Footer: APK Download + Telegram Group (appears at bottom when scrolled) -->
                 <footer class="mt-6 w-full bg-white border-t border-gray-200 rounded-t-xl">
                     <div class="w-full p-3">
                         <div class="grid grid-cols-2 gap-2">
@@ -148,10 +147,8 @@
                     <a id="btn-cashpoint" href="/cashpoint" class="col-span-2 block text-center py-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border">
                         CashPoint
                     </a>
-                    <!-- Density toggle intentionally removed; Compact mode is permanent -->
+                    </div>
                 </div>
-                <!-- Density toggle intentionally removed; Compact mode is permanent -->
-            </div>
             <div class="p-4 border-t">
                 <button id="slider-logout-btn" class="w-full py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center justify-center gap-2">
                     <i class="fas fa-sign-out-alt"></i>
@@ -565,6 +562,12 @@
             const perKill = perKillRaw.trim() === '' ? '—' : (isFinite(Number(perKillRaw)) ? `৳${Number(perKillRaw)}` : perKillRaw);
             const mapName = (contestDetails.map ?? '—').toString();
             const postShortId = `#${String(matchNumber).padStart(4,'0')}`;
+            
+            // MODIFICATION: Handle FREE entry fee
+            const entryFeeValue = parseFloat(contestDetails.entryFee) || 0;
+            const entryFeeHTML = entryFeeValue === 0
+                ? `<span data-field="entryFee">FREE</span>`
+                : `৳<span data-field="entryFee">${entryFeeValue}</span>`;
 
             const remainingSpots = Math.max((contestDetails.maxPlayers || 0) - participantsCount, 0);
             const canJoin = (currentUserRole === 'user') && !hasJoined && !isFull;
@@ -601,7 +604,7 @@
                     </div>
                     <div class="text-center">
                         <p class="text-[10px] text-gray-500 uppercase">ENTRY FEE</p>
-                        <p class="font-bold text-gray-800 text-base">৳<span data-field="entryFee">${contestDetails.entryFee || 0}</span>${editIcon('entryFee')}</p>
+                        <p class="font-bold text-gray-800 text-base">${entryFeeHTML}${editIcon('entryFee')}</p>
                     </div>
                     <div class="text-center">
                         <p class="text-[10px] text-gray-500 uppercase">PER KILL</p>
@@ -770,9 +773,16 @@
             const formBlock = document.createElement('div');
             formBlock.id = `join-form-${post.id}`;
             formBlock.className = 'mb-2 p-3 rounded-lg bg-white border border-gray-200 space-y-2';
+            
+            // MODIFICATION: Conditionally show the fee message
+            const fee = parseFloat(contestDetails.entryFee) || 0;
+            const feeMessageHTML = fee > 0 
+                ? `<p class="text-xs text-center text-red-600">আপনার ওয়ালেট থেকে ৳${fee} কেটে নেওয়া হবে।</p>` 
+                : '';
+
             formBlock.innerHTML = `
                 <input type="text" id="user-id-input-${post.id}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="আপনার ${contestDetails.requiredIdType} দিন">
-                <p class="text-xs text-center text-red-600">আপনার ওয়ালেট থেকে ৳${contestDetails.entryFee} কেটে নেওয়া হবে।</p>
+                ${feeMessageHTML}
             `;
             progressRow.parentElement.insertBefore(formBlock, progressRow);
 
