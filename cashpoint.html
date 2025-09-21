@@ -369,15 +369,82 @@
             sidebarInitial.textContent = userInitial;
         }
 
-        // Render the logged-out landing page -> redirect to standalone auth pages
+        // Render the logged-out landing page (SAFE - No user-generated content from others is displayed)
         function renderLandingPage(view = 'email', authMode = 'login') {
-            const target = authMode === 'signup' ? '/signup' : '/login';
-            window.location.href = target;
+            const googleFormClass = view === 'google' ? 'block' : 'hidden';
+            const emailFormClass = view === 'email' ? 'block' : 'hidden';
+            const buttonText = authMode === 'login' ? 'সাইন ইন' : 'সাইন আপ';
+            const toggleText = authMode === 'login' ? 'অ্যাকাউন্ট নেই? সাইন আপ করুন' : 'ইতিমধ্যেই অ্যাকাউন্ট আছে? সাইন ইন করুন';
+            
+            let nameInput = '';
+            if (authMode === 'signup') {
+                nameInput = `<input type="text" id="name-input" placeholder="আপনার নাম" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">`;
+            }
+
+            mainContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full p-4 text-center space-y-8">
+                    <img src="https://placehold.co/150x150/E2136E/FFFFFF?text=CashPoint" alt="CashPoint Logo" class="w-28 h-28 mb-4 rounded-full">
+                    <h2 class="text-3xl font-bold text-gray-800">CashPoint-এ স্বাগতম</h2>
+                    <p class="text-gray-600">আপনার মোবাইল ব্যাংকিং যাত্রা শুরু করুন।</p>
+
+                    <div class="w-full flex justify-center mb-4 space-x-2">
+                        <button id="email-view-btn" class="py-2 px-4 rounded-full font-semibold transition-all duration-200 ${view === 'email' ? 'bg-cashpoint-pink text-white' : 'bg-gray-200 text-gray-700'}">ইমেইল</button>
+                        <button id="google-view-btn" class="py-2 px-4 rounded-full font-semibold transition-all duration-200 ${view === 'google' ? 'bg-cashpoint-pink text-white' : 'bg-gray-200 text-gray-700'}">Google</button>
+                    </div>
+
+                    <div id="email-form-container" class="w-full max-w-xs space-y-4 ${emailFormClass}">
+                        ${nameInput}
+                        <input type="email" id="email-input" placeholder="ইমেইল" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
+                        <input type="password" id="password-input" placeholder="পাসওয়ার্ড" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
+                        <p id="forgot-password-btn" class="text-right text-xs text-cashpoint-pink cursor-pointer hover:underline mb-2">পাসওয়ার্ড ভুলে গেছেন?</p>
+                        <button id="auth-submit-btn" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">${buttonText}</button>
+                        <p id="toggle-auth-view" class="text-center text-sm text-gray-500 cursor-pointer hover:underline">${toggleText}</p>
+                    </div>
+
+                    <div id="google-form-container" class="w-full max-w-xs space-y-4 ${googleFormClass}">
+                        <button id="google-signin-btn" class="w-full py-3 px-6 bg-cashpoint-pink text-white font-bold rounded-full shadow-lg flex items-center justify-center space-x-2 transition-transform transform hover:scale-105">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.000 12.189c0-.756-.068-1.503-.198-2.235h-9.802v4.195h5.592c-.244 1.348-.992 2.484-2.112 3.284v2.704h3.488c2.043-1.892 3.228-4.664 3.228-8.086z"/><path d="M12.000 22.000c2.932 0 5.378-.973 7.168-2.617l-3.488-2.704c-.957.643-2.18.995-3.68.995-2.834 0-5.232-1.92-6.096-4.508h-3.68v2.846c1.782 3.535 5.253 5.988 9.776 5.988z"/><path d="M5.904 13.567c-.201-.643-.314-1.32-.314-2.007s.113-1.364.314-2.007v-2.846h-3.68c-.645 1.288-1.024 2.766-1.024 4.853s.379 3.565 1.024 4.853l3.68-2.846z"/><path d="M12.000 5.492c1.574 0 2.981.54 4.095 1.579l3.078-3.078c-1.874-1.742-4.298-2.822-7.173-2.822-4.523 0-7.994 2.453-9.776 5.988l3.68 2.846c.864-2.588 3.262-4.508 6.096-4.508z"/></svg>
+                            <span>Google দিয়ে সাইন ইন</span>
+                        </button>
+                    </div>
+                    
+                    <p class="mt-4 text-xs text-gray-400">আপনার ব্যক্তিগত ডেটা গোপনীয় রাখা হবে।</p>
+                </div>
+            `;
+            document.getElementById('google-signin-btn').addEventListener('click', handleGoogleSignIn);
+            document.getElementById('email-view-btn').addEventListener('click', () => renderLandingPage('email', authMode));
+            document.getElementById('google-view-btn').addEventListener('click', () => renderLandingPage('google'));
+            
+            const authSubmitBtn = document.getElementById('auth-submit-btn');
+            authSubmitBtn.addEventListener('click', () => {
+                if (authMode === 'login') {
+                    handleEmailSignIn();
+                } else {
+                    handleEmailSignUp();
+                }
+            });
+            document.getElementById('toggle-auth-view').addEventListener('click', () => {
+                const newAuthMode = authMode === 'signup' ? 'login' : 'signup';
+                navigateTo(newAuthMode === 'signup' ? '/signup' : '/login');
+            });
+            document.getElementById('forgot-password-btn').addEventListener('click', renderForgotPasswordForm);
         }
         
-        // Forgot password view -> redirect to standalone page
+        // Render forgot password form (SAFE - No user-generated content is displayed)
         function renderForgotPasswordForm() {
-            window.location.href = '/forgot-password';
+            mainContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full p-4 text-center space-y-8">
+                    <h2 class="text-3xl font-bold text-gray-800">পাসওয়ার্ড রিসেট করুন</h2>
+                    <p class="text-gray-600">আপনার ইমেইল দিন। আমরা আপনাকে পাসওয়ার্ড রিসেট লিংক পাঠাবো।</p>
+                    <div class="w-full max-w-xs space-y-4">
+                        <input type="email" id="forgot-password-email-input" placeholder="ইমেইল" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
+                        <button id="send-reset-email-btn" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">রিসেট ইমেইল পাঠান</button>
+                        <button id="back-to-login-btn" class="w-full py-3 bg-gray-400 text-white font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">ফিরে যান</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('send-reset-email-btn').addEventListener('click', handleForgotPassword);
+            document.getElementById('back-to-login-btn').addEventListener('click', () => navigateTo('/login'));
         }
 
         // Handle forgot password logic
@@ -430,7 +497,7 @@
             `;
             document.getElementById('profile-form').addEventListener('submit', handleProfileSave);
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/cashpoint');
+                navigateTo('/');
             });
         }
         
@@ -455,10 +522,10 @@
             `;
 
             document.getElementById('setup-new-pin-btn').addEventListener('click', () => navigateTo('/pin-create'));
-            document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/pin-change'));
+            document.getElementById('change-pin-btn').addEventListener('click', () => navigateTo('/change-pin'));
             document.getElementById('forgot-pin-btn').addEventListener('click', () => navigateTo('/pin-forgot'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/cashpoint');
+                navigateTo('/');
             });
         }
 
@@ -480,7 +547,7 @@
             document.getElementById('back-to-pin-options-btn').addEventListener('click', () => navigateTo('/pin-setup'));
         }
 
-        // পিন পরিবর্তন করার ফর্ম (রুট: /pin-change)
+        // পিন পরিবর্তন করার ফর্ম (রুট: /change-pin)
         function renderChangePinForm() {
             mainContent.innerHTML = `
                 <div class="flex flex-col h-full p-4 space-y-6">
@@ -522,7 +589,7 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
                 showMessage(result.message);
-                navigateTo('/cashpoint'); 
+                navigateTo('/'); 
             } catch (error) {
                 showMessage(error.message);
             } finally {
@@ -602,7 +669,7 @@
                 const user = auth.currentUser;
                 if (!user) {
                     showMessage('আপনি সাইন ইন করেননি।');
-                    window.location.href = '/login';
+                    navigateTo('/login');
                     return;
                 }
 
@@ -1324,7 +1391,7 @@
                 }
 
                 showMessage(result.message);
-                navigateTo('/cashpoint');
+                navigateTo('/');
 
             } catch (error) {
                 console.error("Transfer request failed:", error);
@@ -1351,7 +1418,7 @@
             document.getElementById('bkash-btn').addEventListener('click', () => showTransactionForm('bkash'));
             document.getElementById('nagad-btn').addEventListener('click', () => showTransactionForm('nagad'));
             document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-                navigateTo('/cashpoint');
+                navigateTo('/');
             });
         }
         
@@ -1459,7 +1526,7 @@
             });
 
             findRecipientBtn.addEventListener('click', findRecipientAndRenderFormStep2);
-            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/cashpoint'));
+            document.getElementById('cancel-btn').addEventListener('click', () => navigateTo('/'));
         }
 
         async function findRecipientAndRenderFormStep2() {
@@ -2329,30 +2396,28 @@
             const path = window.location.pathname;
             const user = auth.currentUser;
 
-            if (!user) {
-                window.location.href = '/login';
+            if (!user && !['/login', '/signup'].includes(path)) {
+                history.replaceState(null, null, '/login');
+                renderLandingPage('email', 'login');
                 return;
             }
             
             if (user && ['/login', '/signup'].includes(path)) {
-                 history.replaceState(null, null, '/cashpoint');
+                 history.replaceState(null, null, '/');
                  router();
                  return;
             }
 
             switch (path) {
                 case '/login':
-                    window.location.href = '/login';
+                    renderLandingPage('email', 'login');
                     break;
                 case '/signup':
-                    window.location.href = '/signup';
-                    break;
-                case '/forgot-password':
-                    window.location.href = '/forgot-password';
+                    renderLandingPage('email', 'signup');
                     break;
                 case '/admin':
                     if (isAdmin) renderAdminDashboard();
-                    else navigateTo('/');
+                    else if(user) navigateTo('/'); 
                     break;
                 case '/update-profile':
                     if (user) {
@@ -2379,7 +2444,6 @@
                         renderStatementPage(transactions);
                     }
                     break;
-                case '/cashpoint':
                 case '/dashboard':
                 case '/':
                     if(user) {
@@ -2401,8 +2465,14 @@
                     if(user) renderSendMoneyFormStep1();
                     break;
                 case '/turnament':
-                    // Redirect old tournament path to new main page
-                    window.location.href = '/';
+                    if(user) {
+                        mainContent.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full p-4 text-center space-y-8">
+                                <h2 class="text-3xl font-bold text-gray-800">টুর্নামেন্ট</h2>
+                                <p class="text-gray-600">আপনার টুর্নামেন্ট যাত্রা শুরু করুন।</p>
+                            </div>
+                        `;
+                    }
                     break;
                 case '/myprofile':
                     if(user) {
@@ -2415,12 +2485,12 @@
                 case '/pin-create':
                     if(user) renderSetupPinForm();
                     break;
-                case '/pin-change':
+                case '/change-pin':
                     if(user) renderChangePinForm();
                     break;
                 default: 
-                    // যদি কোন লিঙ্ক না মিলে, CashPoint হোম পেজে পাঠিয়ে দিন
-                    navigateTo('/cashpoint');
+                    // যদি কোন লিঙ্ক না মিলে, হোম পেজে পাঠিয়ে দিন
+                    navigateTo('/');
                     break;
             }
         };
@@ -2634,7 +2704,7 @@
 
         logoutBtn.addEventListener('click', async () => {
             await handleLogout();
-            window.location.href = '/login';
+            navigateTo('/login');
         });
         
         menuBtn.addEventListener('click', handleMenuClick);
@@ -2682,7 +2752,7 @@
         }
         if (gamingBtn) {
             gamingBtn.addEventListener('click', () => {
-                window.location.href = '/';
+                window.location.href = '/turnament';
             });
         }
         if (myProfileMenuBtn) {
