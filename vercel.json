@@ -17,6 +17,10 @@
       "destination": "/forgot-password.html"
     },
     {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
       "source": "/turnament",
       "destination": "/index.html"
     },
