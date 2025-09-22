@@ -46,7 +46,21 @@
             color: white;
             font-weight: 600;
         }
+        /* Compact view styles for tournament cards */
         #posts-container.compact .post-card { padding: 0.75rem !important; }
+        #posts-container.compact .post-card .mt-4 { margin-top: 0.5rem !important; }
+        #posts-container.compact .post-card .grid { gap: 0.25rem 0.25rem !important; }
+        #posts-container.compact .post-card .text-lg { font-size: 1rem !important; }
+        #posts-container.compact .post-card .text-base { font-size: 0.95rem !important; }
+        #posts-container.compact .post-card .py-2 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+        #posts-container.compact .post-card .px-6 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+        #posts-container.compact .post-card .h-12 { height: 2rem !important; width: 2rem !important; }
+        #posts-container.compact .post-card .space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: 0.5rem !important; }
+        #posts-container.compact .post-card .rounded-xl { border-radius: 0.5rem !important; }
+        #posts-container.compact .post-card .p-4 { padding: 0.75rem !important; }
+        #posts-container.compact .post-card .p-3 { padding: 0.5rem !important; }
+        #posts-container.compact .post-card .gap-4 { gap: 0.5rem !important; }
+        /* Reduce spacing between cards in compact mode (override Tailwind's space-y-4) */
         #posts-container.compact > .post-card { margin-top: 0.5rem !important; }
     </style>
 </head>
@@ -62,6 +76,8 @@
             <span id="message-text"></span>
         </div>
         
+        <div id="auth-view" class="w-full h-full flex flex-col justify-center p-6"></div>
+
         <div id="app-view" class="hidden w-full h-full flex flex-col">
             <header class="bg-white/80 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-200 flex-shrink-0">
                 <div>
@@ -122,14 +138,14 @@
                     <p id="slider-wallet-balance" class="text-2xl font-extrabold text-green-600">৳০.০০</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <a id="btn-deposit" href="/cashpoint" class="block text-center py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                    <a id="btn-deposit" href="/add-money" class="block text-center py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">
                         ডিপোজিট
                     </a>
-                    <a id="btn-withdraw" href="/cashpoint" class="block text-center py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+                    <a id="btn-withdraw" href="/transfer-money" class="block text-center py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">
                         উইথড্র
                     </a>
                     <a id="btn-cashpoint" href="/cashpoint" class="col-span-2 block text-center py-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border">
-                        CashPoint হোম
+                        CashPoint
                     </a>
                     </div>
                 </div>
@@ -145,10 +161,10 @@
     <script type="module">
         // Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, onSnapshot, orderBy, addDoc, getDocs, where, runTransaction, deleteDoc, serverTimestamp, increment, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Use CashPoint Firebase configuration
+        // Use CashPoint Firebase configuration (shared across CashPoint and Tournament)
         const firebaseConfig = {
             apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
             authDomain: "cashpoint-f8b51.firebaseapp.com",
@@ -159,31 +175,39 @@
             measurementId: "G-WJXSMFBEE6"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase (shared)
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Global App ID for Firestore paths (fixed to shared project id)
         const appId = "cashpoint-f8b51";
         let currentUser = null;
-        let currentAdminFilter = 'active';
-        let postsUnsubscribe = null;
+        let currentAdminFilter = 'active'; // Default filter for admin
+        let postsUnsubscribe = null; // To detach listener on filter change
+
+        // Countdown Timer Globals
         let countdownInterval = null;
         
         // UI Elements
         const loadingEl = document.getElementById('loading');
+        const authViewEl = document.getElementById('auth-view');
         const appViewEl = document.getElementById('app-view');
         const postsContainerEl = document.getElementById('posts-container');
         const adminPostSectionEl = document.getElementById('admin-post-section');
         const modalContainerEl = document.getElementById('modal-container');
+        // Compact mode is permanently enabled via HTML class on #posts-container. Density toggle removed.
+        // Wallet slider elements
         const walletSlider = document.getElementById('wallet-slider');
         const openWalletSliderBtn = document.getElementById('open-wallet-slider');
         const closeWalletSliderBtn = document.getElementById('close-wallet-slider');
         const sliderLogoutBtn = document.getElementById('slider-logout-btn');
         const sliderUserNameEl = document.getElementById('slider-user-name');
         const sliderWalletBalanceEl = document.getElementById('slider-wallet-balance');
+        // Role switch elements
         const roleSwitchEl = document.getElementById('role-switch');
         const btnCashAdmin = document.getElementById('btn-cash-admin');
+        const logoutBtn = document.getElementById('logout-btn');
         const walletArea = document.getElementById('wallet-area');
 
         // Helper Functions
@@ -209,11 +233,13 @@
                     </div>
                 </div>
             `;
+            // Append instead of replace so multiple modals can coexist
             modalContainerEl.insertAdjacentHTML('beforeend', modalHTML);
             const modal = document.getElementById(id);
             modal.classList.add('show');
             modal.querySelector('.close-button').onclick = () => {
                 modal.classList.remove('show');
+                // Remove only this modal, keep others intact
                 setTimeout(() => { 
                     modal.remove(); 
                     onClose(); 
@@ -239,44 +265,60 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                
-                // Firestore থেকে ব্যবহারকারীর তথ্য লোড করার চেষ্টা করা হবে
-                const userDoc = await getDoc(userRef);
-
-                if (!userDoc.exists()) {
-                    // **গুরুত্বপূর্ণ:** যদি ব্যবহারকারীর ডকুমেন্ট না পাওয়া যায়, তার মানে সাইন-আপ প্রসেসে সমস্যা হয়েছে।
-                    // এখানে নতুন ডকুমেন্ট তৈরি না করে ব্যবহারকারীকে লগআউট করে দেওয়া হবে।
-                    console.error(`Firestore document for user ${user.uid} not found. Logging out.`);
-                    showMessage("আপনার প্রোফাইল খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আবার সাইন আপ করুন।", "error");
-                    signOut(auth); // ব্যবহারকারীকে লগআউট করে দেওয়া হলো
-                    return; // ফাংশন থেকে বের হয়ে যাওয়া হলো
-                }
-
-                // ব্যবহারকারীর তথ্য পাওয়া গেলে অ্যাপ দেখানো হবে
+                authViewEl.classList.add('hidden');
                 appViewEl.classList.remove('hidden');
-                
-                onSnapshot(userRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const userData = docSnap.data();
+
+                const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                onSnapshot(userRef, async (docSnap) => {
+                    if (!docSnap.exists) {
+                        // Recreate a minimal user profile if accidentally deleted
+                        try {
+                            await setDoc(userRef, {
+                                email: user.email || '',
+                                fullName: user.displayName || 'User',
+                                isAdmin: false,
+                                balance: 0,
+                                createdAt: serverTimestamp()
+                            }, { merge: true });
+                        } catch (e) {
+                            console.error('Failed to bootstrap tournament user doc:', e);
+                        }
+                        return; // wait for next snapshot
+                    }
+                    const userData = docSnap.data();
+                    if (userData) {
                         const correctUserName = userData.fullName || 'ব্যবহারকারী';
                         
                         document.getElementById('welcome-message').textContent = correctUserName;
                         document.getElementById('wallet-balance').textContent = `৳${(userData.balance || 0).toFixed(2)}`;
+                        // Update slider header info
                         if (sliderUserNameEl) sliderUserNameEl.textContent = correctUserName;
                         if (sliderWalletBalanceEl) sliderWalletBalanceEl.textContent = `৳${(userData.balance || 0).toFixed(2)}`;
                         
+                        // Header admin buttons visible only for admins
                         const isAdminUser = userData.isAdmin === true;
-                        roleSwitchEl.classList.toggle('hidden', !isAdminUser);
-
+                        if (isAdminUser) {
+                            roleSwitchEl.classList.remove('hidden');
+                        } else {
+                            roleSwitchEl.classList.add('hidden');
+                        }
+                        // Admin-specific visibility only on admin route
                         const isAdminRoute = window.location.pathname === '/admin-t';
-                        adminPostSectionEl.classList.toggle('hidden', !(isAdminUser && isAdminRoute));
-
-                        if (isAdminRoute) {
+                        if (isAdminUser && isAdminRoute) {
+                            adminPostSectionEl.classList.remove('hidden');
+                            renderAdminControls();
+                        } else {
+                            adminPostSectionEl.classList.add('hidden');
+                        }
+                        // If user opened the dedicated tournament admin route, enforce access
+                        if (window.location.pathname === '/admin-t') {
                             if (isAdminUser) {
-                                renderAdminControls();
+                                adminPostSectionEl.classList.remove('hidden');
+                                if (!adminPostSectionEl.querySelector('#open-create-post-modal')) {
+                                    renderAdminControls();
+                                }
                             } else {
-                                showMessage('শুধুমাত্র অ্যাডমিনদের জন্য।', 'error');
+                                showMessage('শুধুমাত্র অ্যাডমিনদের জন্য। ব্যবহারকারী ভিউতে পাঠানো হচ্ছে...','error');
                                 setTimeout(() => { window.location.href = '/'; }, 1200);
                             }
                         }
@@ -287,12 +329,12 @@
                 loadingEl.classList.add('hidden');
 
             } else {
-                // ব্যবহারকারী লগইন করা না থাকলে, লগইন পেজে পাঠিয়ে দেওয়া হবে
                 currentUser = null;
                 if (countdownInterval) clearInterval(countdownInterval);
                 if (postsUnsubscribe) postsUnsubscribe();
-                // সরাসরি login.html পেজে রিডাইরেক্ট করা হচ্ছে
-                window.location.href = '/login.html';
+                appViewEl.classList.add('hidden');
+                roleSwitchEl.classList.add('hidden');
+                window.location.href = '/login';
             }
         });
 
@@ -347,28 +389,33 @@
         // --- Countdown Timer Logic ---
         const startCountdownManager = () => {
             if (countdownInterval) clearInterval(countdownInterval);
+
             countdownInterval = setInterval(() => {
-                document.querySelectorAll('[data-countdown-end]').forEach(el => {
+                const countdownElements = document.querySelectorAll('[data-countdown-end]');
+                if(countdownElements.length === 0) {
+                    clearInterval(countdownInterval);
+                    return;
+                }
+
+                countdownElements.forEach(el => {
                     const endTime = parseInt(el.dataset.countdownEnd, 10);
                     const now = new Date().getTime();
                     const distance = endTime - now;
+
                     if (distance < 0) {
-                        el.innerHTML = `<span class="font-bold">শুরু হয়েছে</span>`;
+                        el.innerHTML = `<span class="font-bold">Started</span>`;
                         return;
                     }
-                    const h = String(Math.floor(distance / 3600000)).padStart(2,'0');
-                    const m = String(Math.floor((distance % 3600000) / 60000)).padStart(2,'0');
-                    const s = String(Math.floor((distance % 60000) / 1000)).padStart(2,'0');
-                    el.textContent = `${h}h:${m}m:${s}s`;
+                    const totalHours = Math.floor(distance / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    const hh = String(totalHours).padStart(2,'0');
+                    const mm = String(minutes).padStart(2,'0');
+                    const ss = String(seconds).padStart(2,'0');
+                    el.textContent = `${hh}h:${mm}m:${ss}s`;
                 });
             }, 1000);
         };
-
-        // --- Posts and Tournaments ---
-        // এই অংশের বাকি কোড (listenForPosts, createPostElement, এবং অন্যান্য ফাংশন) অপরিবর্তিত থাকবে
-        // ... (আগের ফাইলের বাকি সমস্ত জাভাস্ক্রিপ্ট কোড এখানে পেস্ট করুন)
-        // ...
-        // ...
 
         // --- Posts and Tournaments ---
         const listenForPosts = async () => {

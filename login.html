@@ -34,7 +34,7 @@
         <button type="submit" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl transition">সাইন ইন</button>
       </form>
       <div class="flex items-center justify-between mt-4 text-sm">
-        <a href="/forgot-password" class="text-cashpoint-pink hover:underline">পাসওয়ার্ড ভুলে গেছেন?</a>
+        <a href="#" id="forgot-link" class="text-cashpoint-pink hover:underline">পাসওয়ার্ড ভুলে গেছেন?</a>
         <a href="/signup" class="text-cashpoint-pink hover:underline">অ্যাকাউন্ট তৈরি করুন</a>
       </div>
       <div class="my-4 flex items-center gap-3">
@@ -51,6 +51,37 @@
         </svg>
         <span>Sign in with Google</span>
       </button>
+
+      <!-- Forgot Password section (inline) -->
+      <div id="reset-section" class="mt-4 hidden">
+        <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
+          <h3 class="font-semibold text-gray-800 mb-2">পাসওয়ার্ড রিসেট</h3>
+          <p class="text-sm text-gray-600 mb-3">আপনার ইমেইলে একটি রিসেট লিংক পাঠানো হবে।</p>
+          <div class="flex gap-2">
+            <input id="reset-email" type="email" class="flex-1 p-3 form-input border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" placeholder="you@example.com" />
+            <button id="reset-btn" class="px-4 py-3 bg-cashpoint-pink text-white font-semibold rounded-xl">পাঠান</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIN setup section (shown when pinHash is not set) -->
+      <div id="pin-section" class="mt-6 hidden">
+        <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
+          <h2 class="text-lg font-bold text-gray-800 mb-2">৪-সংখ্যার পিন সেট করুন</h2>
+          <p class="text-sm text-gray-600 mb-4">নিরাপত্তার জন্য একটি ৪-সংখ্যার পিন সেট করুন।</p>
+          <div class="space-y-3">
+            <div>
+              <label for="pin" class="block text-sm text-gray-600 mb-1">পিন</label>
+              <input id="pin" type="password" maxlength="4" inputmode="numeric" pattern="\\d{4}" placeholder="****" class="w-full p-3 form-input rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" />
+            </div>
+            <div>
+              <label for="pin2" class="block text-sm text-gray-600 mb-1">পিন নিশ্চিত করুন</label>
+              <input id="pin2" type="password" maxlength="4" inputmode="numeric" pattern="\\d{4}" placeholder="****" class="w-full p-3 form-input rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" />
+            </div>
+            <button id="save-pin-btn" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl transition">পিন সেভ করুন</button>
+          </div>
+        </div>
+      </div>
       <p id="msg" class="mt-4 text-center text-sm text-gray-600"></p>
     </div>
     </div>
@@ -74,7 +105,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -94,8 +125,31 @@
     const provider = new GoogleAuthProvider();
 
     const msg = (t) => document.getElementById('msg').textContent = t || '';
+    const pinSection = document.getElementById('pin-section');
+    const savePinBtn = document.getElementById('save-pin-btn');
+    const resetSection = document.getElementById('reset-section');
+    const forgotLink = document.getElementById('forgot-link');
+    const resetBtn = document.getElementById('reset-btn');
+    let pendingUser = null; // user needing to set PIN
 
-    onAuthStateChanged(auth, (user) => { if (user) window.location.replace('/'); });
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      // If already logged-in user visits login page, redirect to home
+      try {
+        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        const snap = await getDoc(ref);
+        const pinHash = snap.exists() ? snap.data().pinHash : 0;
+        if (pinHash && Number(pinHash) > 0) {
+          window.location.replace('/');
+        } else {
+          // Show PIN setup if missing
+          pendingUser = user;
+          pinSection.classList.remove('hidden');
+        }
+      } catch (_) {
+        window.location.replace('/');
+      }
+    });
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -103,8 +157,21 @@
       try {
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
-        await signInWithEmailAndPassword(auth, email, password);
-        window.location.replace('/');
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const user = cred.user;
+        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          await setDoc(ref, { fullName: user.displayName || 'User', email: user.email || '', balance: 0, isAdmin: false, pinHash: 0 }, { merge: true });
+        }
+        const pinHash = (await getDoc(ref)).data().pinHash || 0;
+        if (Number(pinHash) > 0) {
+          window.location.replace('/');
+        } else {
+          pendingUser = user;
+          pinSection.classList.remove('hidden');
+          msg('দয়া করে ৪-সংখ্যার পিন সেট করুন।');
+        }
       } catch (err) {
         msg('সাইন ইন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
       }
@@ -128,11 +195,59 @@
             pinHash: 0
           }, { merge: true });
         }
-        window.location.replace('/');
+        const snap2 = await getDoc(ref);
+        const pinHash = snap2.exists() ? (snap2.data().pinHash || 0) : 0;
+        if (Number(pinHash) > 0) {
+          window.location.replace('/');
+        } else {
+          pendingUser = user;
+          pinSection.classList.remove('hidden');
+          msg('দয়া করে ৪-সংখ্যার পিন সেট করুন।');
+        }
       } catch (err) {
         msg('Google সাইন ইন ব্যর্থ হয়েছে।');
       }
     });
+
+    // Forgot password
+    if (forgotLink) {
+      forgotLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetSection.classList.toggle('hidden');
+      });
+    }
+    if (resetBtn) {
+      resetBtn.addEventListener('click', async () => {
+        const email = (document.getElementById('reset-email').value || '').trim();
+        if (!email) { msg('ইমেইল দিন।'); return; }
+        msg('রিসেট লিংক পাঠানো হচ্ছে...');
+        try {
+          await sendPasswordResetEmail(auth, email);
+          msg('রিসেট লিংক পাঠানো হয়েছে। আপনার ইমেইল দেখুন।');
+        } catch (_) {
+          msg('রিসেট লিংক পাঠাতে সমস্যা হয়েছে।');
+        }
+      });
+    }
+
+    // Save PIN handler
+    if (savePinBtn) {
+      savePinBtn.addEventListener('click', async () => {
+        if (!pendingUser) { window.location.replace('/'); return; }
+        const p1 = (document.getElementById('pin').value || '').trim();
+        const p2 = (document.getElementById('pin2').value || '').trim();
+        if (!/^\d{4}$/.test(p1)) { msg('৪ সংখ্যার পিন দিন।'); return; }
+        if (p1 !== p2) { msg('পিন মেলেনি।'); return; }
+        msg('পিন সেভ হচ্ছে...');
+        try {
+          await setDoc(doc(db, `artifacts/${appId}/users/${pendingUser.uid}`), { pinHash: Number(p1) }, { merge: true });
+          msg('পিন সেভ হয়েছে।');
+          window.location.replace('/');
+        } catch (_) {
+          msg('পিন সেভ করতে সমস্যা হয়েছে।');
+        }
+      });
+    }
   </script>
 </body>
 </html>
