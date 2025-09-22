@@ -275,6 +275,7 @@
                         try {
                             await setDoc(userRef, {
                                 email: user.email || '',
+                                name: user.displayName || 'User', // Fix: Added 'name' field
                                 fullName: user.displayName || 'User',
                                 isAdmin: false,
                                 balance: 0,
@@ -287,11 +288,15 @@
                     }
                     const userData = docSnap.data();
                     if (userData) {
-                        document.getElementById('welcome-message').textContent = userData.fullName || 'ব্যবহারকারী';
+                        // Fix: Check for 'name' first, then 'fullName' for consistency
+                        const correctUserName = userData.name || userData.fullName || 'ব্যবহারকারী';
+                        
+                        document.getElementById('welcome-message').textContent = correctUserName;
                         document.getElementById('wallet-balance').textContent = `৳${(userData.balance || 0).toFixed(2)}`;
                         // Update slider header info
-                        if (sliderUserNameEl) sliderUserNameEl.textContent = userData.fullName || 'ব্যবহারকারী';
+                        if (sliderUserNameEl) sliderUserNameEl.textContent = correctUserName;
                         if (sliderWalletBalanceEl) sliderWalletBalanceEl.textContent = `৳${(userData.balance || 0).toFixed(2)}`;
+                        
                         // Header admin buttons visible only for admins
                         const isAdminUser = userData.isAdmin === true;
                         if (isAdminUser) {
