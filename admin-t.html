@@ -393,5 +393,18 @@
       }
     }
   </script>
+  <script>
+    // Delegate click for any user-name-link to open profile modal
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('.user-name-link[data-user-id]');
+      if (el) {
+        e.preventDefault();
+        const uid = el.getAttribute('data-user-id') || el.dataset.userId;
+        if (uid) {
+          showUserProfileModal(uid);
+        }
+      }
+    });
+  </script>
 </body>
 </html>
