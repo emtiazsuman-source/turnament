@@ -321,32 +321,54 @@
       const modalContent = document.getElementById('modal-content');
       modalContent.innerHTML = '';
 
+      // Prepare presentation
       const date = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : new Date();
       const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+      const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
       const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
-      const amountVal = typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '0.00';
+      const amount = Number(tx.amount) || 0;
       const chargeVal = typeof tx.charge === 'number' ? tx.charge.toFixed(2) : '0.00';
 
+      let title = 'লেনদেন';
+      let amountPrefix = amount >= 0 ? '+ ৳' : '- ৳';
+      let amountColor = amount >= 0 ? 'text-green-600' : 'text-red-600';
+      switch (tx.type) {
+        case 'deposit': title = 'অ্যাড মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+        case 'send': title = 'সেন্ড মানি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+        case 'receive': title = 'রিসিভ মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+        case 'transfer': title = 'ট্রান্সফার'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+        case 'tournament_prize': title = 'টুর্নামেন্ট প্রাইজ'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+        case 'tournament_join': title = 'টুর্নামেন্ট ফি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+      }
+
+      let statusText = 'সফল', statusClass = 'text-green-600';
+      if (tx.status === 'pending') { statusText = 'অপেক্ষমাণ'; statusClass = 'text-orange-500'; }
+      else if (tx.status === 'rejected') { statusText = 'ব্যর্থ'; statusClass = 'text-red-600'; }
+
       const container = document.createElement('div');
-      container.className = 'space-y-4';
+      container.className = 'space-y-3';
       container.innerHTML = `
         <div class="flex items-start justify-between">
-          <h3 class="text-lg font-bold text-gray-800">ট্রানজেকশন বিস্তারিত</h3>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800">${title}</h3>
+            <span class="text-xs font-semibold ${statusClass}">${statusText}</span>
+          </div>
           <button id="close-trx-details" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 space-y-2">
-          <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId || 'N/A'}</span></p>
-          <p class="text-sm text-gray-700"><span class="font-semibold">TrxID:</span> <span class="font-mono">${trxId}</span> <button class="ml-2 text-xs text-pink-600 underline" onclick="copyToClipboard && copyToClipboard('${trxId}')">কপি</button></p>
-          <p class="text-sm text-gray-700"><span class="font-semibold">টাইপ:</span> ${tx.type || 'N/A'}</p>
-          <p class="text-sm text-gray-700"><span class="font-semibold">স্ট্যাটাস:</span> ${tx.status || 'N/A'}</p>
-          <p class="text-sm text-gray-700"><span class="font-semibold">এমাউন্ট:</span> ৳ ${amountVal}</p>
-          ${tx.charge ? `<p class="text-sm text-gray-700"><span class="font-semibold">চার্জ:</span> ৳ ${chargeVal}</p>` : ''}
-          ${tx.method ? `<p class="text-sm text-gray-700"><span class="font-semibold">পদ্ধতি:</span> ${tx.method}</p>` : ''}
-          ${tx.senderNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">প্রেরক নম্বর:</span> <span class="font-mono">${tx.senderNumber}</span></p>` : ''}
-          ${tx.recipientNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">গ্রাহক নম্বর:</span> <span class="font-mono">${tx.recipientNumber}</span></p>` : ''}
-          ${tx.description ? `<p class="text-sm text-gray-700"><span class="font-semibold">বিবরণ:</span> ${tx.description}</p>` : ''}
-          <p class="text-xs text-gray-500">${time}, ${dateStr}</p>
+        <div class="text-2xl font-extrabold ${amountColor}">${amountPrefix}${Math.abs(amount).toFixed(2)}</div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <dl class="text-sm text-gray-700 space-y-1">
+            <div class="flex justify-between"><dt class="font-medium">বিবরণ:</dt><dd>${tx.description || ''}</dd></div>
+            <div class="flex justify-between"><dt class="font-medium">সময়:</dt><dd>${time} ${dateStr}</dd></div>
+            ${tx.charge !== undefined ? `<div class="flex justify-between"><dt class="font-medium">চার্জ:</dt><dd>৳ ${chargeVal}</dd></div>` : ''}
+            ${tx.method ? `<div class="flex justify-between"><dt class="font-medium">মেথড:</dt><dd>${tx.method}</dd></div>` : ''}
+            ${tx.senderEmail ? `<div class="flex justify-between"><dt class="font-medium">প্রেরকের ইমেইল:</dt><dd class="font-mono">${tx.senderEmail}</dd></div>` : ''}
+            ${tx.recipientEmail ? `<div class="flex justify-between"><dt class="font-medium">প্রাপকের ইমেইল:</dt><dd class="font-mono">${tx.recipientEmail}</dd></div>` : ''}
+            ${tx.senderNumber ? `<div class="flex justify-between"><dt class="font-medium">প্রেরক নম্বর:</dt><dd class="font-mono">${tx.senderNumber}</dd></div>` : ''}
+            ${tx.recipientNumber ? `<div class="flex justify-between"><dt class="font-medium">গ্রাহক নম্বর:</dt><dd class="font-mono">${tx.recipientNumber}</dd></div>` : ''}
+            <div class="flex items-center justify-between"><dt class="font-medium">ট্রানজেকশন আইডি:</dt><dd class="flex items-center gap-2 font-mono">${trxId}<button class="text-xs text-pink-600 underline" onclick="copyToClipboard('${trxId}')">কপি</button></dd></div>
+            ${userId ? `<div class="flex justify-between"><dt class="font-medium">ইউজার আইডি:</dt><dd class="font-mono">${userId}</dd></div>` : ''}
+          </dl>
         </div>
       `;
       modalContent.appendChild(container);
@@ -360,6 +382,15 @@
       const closeBtn = document.getElementById('close-trx-details');
       if (closeBtn) closeBtn.addEventListener('click', close, { once: true });
       modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
+    }
+
+    if (typeof copyToClipboard !== 'function') {
+      function copyToClipboard(text){
+        navigator.clipboard.writeText(text).then(() => {
+          const msg = document.getElementById('message-box');
+          if (msg){ msg.textContent = 'আইডি কপি করা হয়েছে!'; msg.classList.remove('scale-0'); msg.classList.add('scale-100'); setTimeout(()=>{ msg.classList.remove('scale-100'); msg.classList.add('scale-0'); }, 1500); }
+        }).catch(()=>{});
+      }
     }
   </script>
 </body>
