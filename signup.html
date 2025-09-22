@@ -97,10 +97,9 @@
 
     const msg = (t) => document.getElementById('msg').textContent = t || '';
 
+    // Removed auto-redirect on auth state change to prevent racing before profile creation
     onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      // User is authenticated; go to home/dashboard
-      window.location.replace('/');
+      // Intentionally left blank on signup page
     });
 
     // PIN-related elements removed
@@ -112,11 +111,12 @@
         const name = document.getElementById('name').value.trim();
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
+        if (!name) { msg('অনুগ্রহ করে আপনার নাম লিখুন।'); return; }
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(cred.user, { displayName: name });
         await setDoc(doc(db, `artifacts/${appId}/users/${cred.user.uid}`), {
-          fullName: name || 'ব্যবহারকারী',
-          email: cred.user.email || '',
+          fullName: name,
+          email: email || cred.user.email || '',
           mobile: '',
           dob: '',
           balance: 0.00,
