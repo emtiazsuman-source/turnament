@@ -942,6 +942,109 @@
                 showLoading(false);
             }
         }
+
+        // Render a full transaction details view in the modal (from user profile transaction list)
+        function showTransactionDetails(tx, userId) {
+            const modal = document.getElementById('transaction-details-modal');
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = '';
+
+            const date = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : new Date();
+            const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+            const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
+            const amountVal = typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '0.00';
+            const chargeVal = typeof tx.charge === 'number' ? tx.charge.toFixed(2) : '0.00';
+
+            const container = document.createElement('div');
+            container.className = 'space-y-4';
+            container.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <h3 class="text-lg font-bold text-gray-800">ট্রানজেকশন বিস্তারিত</h3>
+                    <button id="close-trx-details" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId || 'N/A'}</span></p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">TrxID:</span> <span class="font-mono">${trxId}</span> <button class="ml-2 text-xs text-cashpoint-pink underline" onclick="copyToClipboard('${trxId}')">কপি</button></p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">টাইপ:</span> ${tx.type || 'N/A'}</p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">স্ট্যাটাস:</span> ${tx.status || 'N/A'}</p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">এমাউন্ট:</span> ৳ ${amountVal}</p>
+                    ${tx.charge ? `<p class="text-sm text-gray-700"><span class="font-semibold">চার্জ:</span> ৳ ${chargeVal}</p>` : ''}
+                    ${tx.method ? `<p class="text-sm text-gray-700"><span class="font-semibold">পদ্ধতি:</span> ${tx.method}</p>` : ''}
+                    ${tx.senderNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">প্রেরক নম্বর:</span> <span class="font-mono">${tx.senderNumber}</span></p>` : ''}
+                    ${tx.recipientNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">গ্রাহক নম্বর:</span> <span class="font-mono">${tx.recipientNumber}</span></p>` : ''}
+                    ${tx.description ? `<p class="text-sm text-gray-700"><span class="font-semibold">বিবরণ:</span> ${tx.description}</p>` : ''}
+                    <p class="text-xs text-gray-500">${time}, ${dateStr}</p>
+                </div>
+            `;
+            modalContent.appendChild(container);
+            modal.classList.remove('hidden');
+            setTimeout(() => modalContent.classList.add('scale-100'), 10);
+
+            const close = () => {
+                modalContent.classList.remove('scale-100');
+                setTimeout(() => modal.classList.add('hidden'), 200);
+            };
+            document.getElementById('close-trx-details').addEventListener('click', close, { once: true });
+            modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
+        }
+
+        // Render a full request details view in the modal (from admin requests list)
+        function showRequestFullView(request, type) {
+            const modal = document.getElementById('transaction-details-modal');
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = '';
+
+            const date = request.timestamp ? request.timestamp.toDate() : new Date();
+            const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+            const amountVal = typeof request.amount === 'number' ? request.amount.toFixed(2) : '0.00';
+            const chargeVal = typeof request.charge === 'number' ? request.charge.toFixed(2) : '0.00';
+
+            let title = type === 'add-money' ? 'অ্যাড মানি রিকোয়েস্ট' : 'ট্রান্সফার রিকোয়েস্ট';
+
+            const container = document.createElement('div');
+            container.className = 'space-y-4';
+            container.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <h3 class="text-lg font-bold text-gray-800">${title} - বিস্তারিত</h3>
+                    <button id="close-request-details" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার:</span> ${request.userName || request.userId}</p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${request.userId}</span></p>
+                    ${type === 'add-money' ? `<p class="text-sm text-gray-700"><span class="font-semibold">TrxID:</span> <span class="font-mono">${request.txId || 'N/A'}</span> ${request.txId ? `<button class="ml-2 text-xs text-cashpoint-pink underline" onclick="copyToClipboard('${request.txId}')">কপি</button>` : ''}</p>` : ''}
+                    ${request.method ? `<p class="text-sm text-gray-700"><span class="font-semibold">মেথড:</span> ${request.method}</p>` : ''}
+                    ${request.senderNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">ব্যবহারকারীর নম্বর:</span> <span class="font-mono">${request.senderNumber}</span></p>` : ''}
+                    ${request.recipientAdminNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">অ্যাডমিন নম্বর:</span> <span class="font-mono">${request.recipientAdminNumber}</span></p>` : ''}
+                    ${request.recipientNumber ? `<p class="text-sm text-gray-700"><span class="font-semibold">গ্রাহক নম্বর:</span> <span class="font-mono">${request.recipientNumber}</span></p>` : ''}
+                    <p class="text-sm text-gray-700"><span class="font-semibold">স্ট্যাটাস:</span> ${request.status}</p>
+                    <p class="text-sm text-gray-700"><span class="font-semibold">এমাউন্ট:</span> ৳ ${amountVal}</p>
+                    ${request.charge ? `<p class="text-sm text-gray-700"><span class="font-semibold">চার্জ:</span> ৳ ${chargeVal}</p>` : ''}
+                    ${request.reserveUsed ? `<p class="text-sm text-gray-700"><span class="font-semibold">রিজার্ভ ব্যবহার:</span> ৳ ${request.reserveUsed.toFixed(2)}</p>` : ''}
+                    <p class="text-xs text-gray-500">${time}, ${dateStr}</p>
+                </div>
+                ${request.status === 'pending' ? `
+                <div class="flex space-x-2">
+                    <button class="accept-btn flex-1 bg-green-500 text-white px-3 py-2 text-sm font-bold rounded-md hover:bg-green-600" data-id="${request.id}" data-type="${type}" data-user-id="${request.userId}" data-amount="${request.amount}" data-transaction-ref="${request.transactionRef || ''}">গ্রহণ</button>
+                    <button class="reject-btn flex-1 bg-red-500 text-white px-3 py-2 text-sm font-bold rounded-md hover:bg-red-600" data-id="${request.id}" data-type="${type}" data-user-id="${request.userId}" data-amount="${request.amount}" data-transaction-ref="${request.transactionRef || ''}">বাতিল</button>
+                </div>` : ''}
+            `;
+            modalContent.appendChild(container);
+            modal.classList.remove('hidden');
+            setTimeout(() => modalContent.classList.add('scale-100'), 10);
+
+            const close = () => {
+                modalContent.classList.remove('scale-100');
+                setTimeout(() => modal.classList.add('hidden'), 200);
+            };
+            document.getElementById('close-request-details').addEventListener('click', close, { once: true });
+            modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
+
+            // Re-bind action buttons inside modal
+            document.querySelectorAll('#modal-content .accept-btn').forEach(button => button.addEventListener('click', (e) => { e.stopPropagation(); handleRequestAction(e); }));
+            document.querySelectorAll('#modal-content .reject-btn').forEach(button => button.addEventListener('click', (e) => { e.stopPropagation(); handleRequestAction(e); }));
+        }
     </script>
 </body>
 </html>
