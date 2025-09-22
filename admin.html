@@ -664,7 +664,12 @@
                         const cardContent = document.createElement('div'); cardContent.className = 'p-3';
                         const header = document.createElement('div'); header.className = 'flex items-center'; header.innerHTML = `<div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${color} font-bold mr-4"><i class="fas ${icon}"></i></div>`;
                         const userInfo = document.createElement('div'); userInfo.className = 'flex-grow';
-                        const userNameP = document.createElement('p'); userNameP.className = 'font-semibold text-gray-800'; userNameP.textContent = request.userName;
+                        const userNameP = document.createElement('p'); userNameP.className = 'font-semibold text-gray-800 cursor-pointer hover:underline'; userNameP.textContent = request.userName; userNameP.title = 'প্রোফাইল দেখুন';
+                        // Open selected user's profile modal on click
+                        userNameP.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showUserProfileModal(request.userId);
+                        });
                         const titleP = document.createElement('p'); titleP.className = 'text-xs text-gray-500'; titleP.textContent = title; userInfo.append(userNameP, titleP);
                         const amountInfo = document.createElement('div'); amountInfo.className = 'text-right'; amountInfo.innerHTML = `<p class="font-bold text-gray-800 text-lg">৳ ${request.amount.toFixed(2)}</p><p class="text-xs text-gray-400">${time}, ${dateStr}</p>`;
                         header.append(userInfo, amountInfo);
@@ -779,6 +784,92 @@
             });
         }
         window.copyToClipboard = copyToClipboard;
+
+        // Show a user's profile, balance, and all transactions in the modal
+        async function showUserProfileModal(userId) {
+            try {
+                showLoading(true);
+                const modal = document.getElementById('transaction-details-modal');
+                const modalContent = document.getElementById('modal-content');
+                modalContent.innerHTML = '';
+
+                // Fetch user profile
+                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}`);
+                const userDoc = await getDoc(userDocRef);
+                if (!userDoc.exists()) {
+                    showMessage('ইউজার পাওয়া যায়নি');
+                    return;
+                }
+                const user = userDoc.data();
+
+                // Fetch transactions
+                const txColRef = collection(db, `artifacts/${appId}/users/${userId}/transactions`);
+                const txSnap = await getDocs(txColRef);
+                const txs = txSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Sort by timestamp desc if available
+                txs.sort((a, b) => {
+                    const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+                    const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
+                    return tb - ta;
+                });
+
+                const profileHtml = `
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between">
+                            <h3 class="text-lg font-bold text-gray-800">ব্যবহারকারীর প্রোফাইল</h3>
+                            <button id="close-user-profile-modal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-sm text-gray-700"><span class="font-semibold">নাম:</span> ${user.fullName || 'N/A'}</p>
+                            <p class="text-sm text-gray-700"><span class="font-semibold">মোবাইল:</span> ${user.mobile || 'N/A'}</p>
+                            <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId}</span></p>
+                            <p class="text-sm text-gray-700"><span class="font-semibold">ব্যালেন্স:</span> ৳ ${(user.balance || 0).toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <h4 class="text-md font-semibold text-gray-800 mb-2">সকল ট্রানজেকশন</h4>
+                            ${txs.length === 0 ? '<p class="text-sm text-gray-500">কোনো ট্রানজেকশন নেই।</p>' : ''}
+                            <div class="max-h-96 overflow-y-auto divide-y">
+                                ${txs.map(tx => {
+                                    const d = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : null;
+                                    const timeStr = d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+                                    const dateStr = d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+                                    const amount = typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '0.00';
+                                    const type = tx.type || 'N/A';
+                                    const status = tx.status || 'N/A';
+                                    const ref = tx.txId || tx.reference || tx.id || '';
+                                    return `
+                                        <div class="py-2 flex items-start">
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium text-gray-800">${type} • ৳ ${amount}</p>
+                                                <p class="text-xs text-gray-500">স্ট্যাটাস: ${status}${ref ? ` • <span class=\"font-mono\">${ref}</span>` : ''}</p>
+                                                ${d ? `<p class="text-xs text-gray-400">${timeStr}, ${dateStr}</p>` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const container = document.createElement('div');
+                container.innerHTML = profileHtml;
+                modalContent.appendChild(container);
+                modal.classList.remove('hidden');
+                setTimeout(() => modalContent.classList.add('scale-100'), 10);
+
+                const close = () => {
+                    modalContent.classList.remove('scale-100');
+                    setTimeout(() => modal.classList.add('hidden'), 200);
+                };
+                document.getElementById('close-user-profile-modal').addEventListener('click', close, { once: true });
+                modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
+            } catch (err) {
+                console.error('Failed to load user profile:', err);
+                showMessage('ইউজার প্রোফাইল লোড করতে সমস্যা হয়েছে।');
+            } finally {
+                showLoading(false);
+            }
+        }
     </script>
 </body>
 </html>
