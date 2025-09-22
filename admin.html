@@ -895,7 +895,9 @@
                         const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
 
                         const row = document.createElement('div');
-                        row.className = 'flex items-center p-3 bg-white rounded-lg shadow-sm';
+                        row.className = 'flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer';
+                        row.setAttribute('role', 'button');
+                        row.setAttribute('tabindex', '0');
 
                         const avatar = document.createElement('div');
                         avatar.className = 'w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-cashpoint-pink font-bold mr-4';
@@ -919,6 +921,19 @@
                         chevronDiv.innerHTML = '<i class="fas fa-chevron-right"></i>';
 
                         row.append(avatar, info, amountDiv, chevronDiv);
+                        // Open full transaction details on click
+                        row.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showTransactionDetails(tx, userId);
+                        });
+                        // Also bind on inner sections to be extra-safe
+                        info.addEventListener('click', (e) => { e.stopPropagation(); showTransactionDetails(tx, userId); });
+                        amountDiv.addEventListener('click', (e) => { e.stopPropagation(); showTransactionDetails(tx, userId); });
+                        chevronDiv.addEventListener('click', (e) => { e.stopPropagation(); showTransactionDetails(tx, userId); });
+                        // Keyboard accessibility
+                        row.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showTransactionDetails(tx, userId); }
+                        });
                         listEl.appendChild(row);
                     });
                 }
