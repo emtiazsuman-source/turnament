@@ -108,7 +108,6 @@
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(cred.user, { displayName: name });
         await setDoc(doc(db, `artifacts/${appId}/users/${cred.user.uid}`), {
-          name: name || 'ব্যবহারকারী',
           fullName: name || 'ব্যবহারকারী',
           email: cred.user.email || '',
           mobile: '',
@@ -133,7 +132,6 @@
         const snap = await getDoc(ref);
         if (!snap.exists()) {
           await setDoc(ref, {
-            name: user.displayName || 'New User',
             fullName: user.displayName || 'New User',
             email: user.email || '',
             balance: 0.00,

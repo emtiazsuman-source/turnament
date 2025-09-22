@@ -275,7 +275,6 @@
                         try {
                             await setDoc(userRef, {
                                 email: user.email || '',
-                                name: user.displayName || 'User',
                                 fullName: user.displayName || 'User',
                                 isAdmin: false,
                                 balance: 0,
@@ -288,7 +287,7 @@
                     }
                     const userData = docSnap.data();
                     if (userData) {
-                        const correctUserName = userData.name || userData.fullName || 'ব্যবহারকারী';
+                        const correctUserName = userData.fullName || 'ব্যবহারকারী';
                         
                         document.getElementById('welcome-message').textContent = correctUserName;
                         document.getElementById('wallet-balance').textContent = `৳${(userData.balance || 0).toFixed(2)}`;

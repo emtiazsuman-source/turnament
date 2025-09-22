@@ -358,7 +358,7 @@
         
         // Render the sidebar with user data (SAFE)
         function renderSidebar(profileData) {
-            const userName = profileData.name || profileData.fullName || 'ব্যবহারকারী';
+            const userName = profileData.fullName || 'ব্যবহারকারী';
             const userMobile = profileData.mobile || '';
             const userDob = profileData.dob || '';
             const userEmail = (auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : '';
@@ -386,7 +386,7 @@
         
         // Render the profile form page (SAFE - User content is in `value` attributes)
         function renderUpdateInfoForm(profileData = {}) {
-            const name = profileData.name || '';
+            const name = profileData.fullName || '';
             const dob = profileData.dob || '';
             const mobile = profileData.mobile || '';
 
@@ -394,7 +394,7 @@
                 <div class="flex flex-col items-center h-full p-4 space-y-6">
                     <h2 class="text-2xl font-bold text-cashpoint-pink mb-4">আপনার প্রোফাইল সম্পূর্ণ করুন</h2>
                     <form id="profile-form" class="w-full space-y-4">
-                        <input type="text" id="name" placeholder="আপনার নাম" value="${name}" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
+                        <input type="text" id="full-name" placeholder="আপনার নাম" value="${name}" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
                         <input type="date" id="dob-input" placeholder="আপনার জন্মতারিখ" value="${dob}" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
                         <input type="tel" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" id="mobile" placeholder="আপনার মোবাইল নম্বর" value="${mobile}" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
                         <input type="password" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" id="pin" placeholder="৪-সংখ্যার পিন দিন" maxlength="4" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink">
@@ -626,7 +626,7 @@
         
         // [SECURE] Render the main dashboard
         function renderDashboard(profileData) {
-            const userName = profileData.name || 'ব্যবহারকারী';
+            const userName = profileData.fullName || 'ব্যবহারকারী';
             const balance = profileData.balance !== undefined ? profileData.balance.toFixed(2) : '0.00';
             const userEmail = (auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : '';
             const userDob = profileData.dob || '';
@@ -1464,18 +1464,16 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ recipientId: recipientId })
+                    body: JSON.stringify({ recipientId })
                 });
-
                 const result = await response.json();
-
                 if (!response.ok) {
                     throw new Error(result.message);
                 }
 
-                recipientData = { uid: result.uid, name: result.name, mobile: result.mobile };
+                recipientData = { uid: result.uid, fullName: result.fullName, mobile: result.mobile };
                 
-                recipientInfoDiv.textContent = `প্রাপক: ${recipientData.name} (${recipientData.mobile})`;
+                recipientInfoDiv.textContent = `প্রাপক: ${recipientData.fullName} (${recipientData.mobile})`;
                 recipientInfoDiv.classList.remove('text-red-600');
                 recipientInfoDiv.classList.add('text-green-600');
                 renderSendMoneyFormStep3(recipientData);
@@ -1720,7 +1718,6 @@
 
                 if (!userDocSnap.exists()) {
                     await setDoc(userDocRef, {
-                        name: user.displayName || 'New User',
                         fullName: user.displayName || 'New User',
                         email: user.email,
                         balance: 0.00,
@@ -1753,7 +1750,7 @@
 
         async function handleProfileSave(event) {
             event.preventDefault();
-            const name = document.getElementById('name').value;
+            const name = document.getElementById('full-name').value;
             const dob = document.getElementById('dob-input').value;
             const mobile = document.getElementById('mobile').value;
             const pin = document.getElementById('pin').value;
@@ -1774,7 +1771,7 @@
                 const response = await fetch('/api/updateProfile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ name, dob, mobile, pin })
+                    body: JSON.stringify({ fullName: name, dob, mobile, pin })
                 });
 
                 const result = await response.json();
@@ -2031,7 +2028,7 @@
                     const requestData = docSnap.data();
                     const userDocRef = doc(db, `artifacts/${appId}/users`, requestData.userId);
                     const userDoc = await getDoc(userDocRef);
-                    const userName = userDoc.exists() ? userDoc.data().name : 'Unknown User';
+                    const userName = userDoc.exists() ? (userDoc.data().fullName || 'Unknown User') : 'Unknown User';
                     requests.push({ id: docSnap.id, ...requestData, userName });
                 }
 
@@ -2281,7 +2278,7 @@
                     if(user) {
                         const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
                         const docSnap = await getDoc(userDocRef);
-                        const profileData = docSnap.exists() ? docSnap.data() : { name: 'ব্যবহারকারী', balance: 0.00 };
+                        const profileData = docSnap.exists() ? docSnap.data() : { fullName: 'ব্যবহারকারী', balance: 0.00 };
                         renderDashboard(profileData);
                     } else {
                          renderLandingPage();
@@ -2363,7 +2360,6 @@
                     } else {
                          // If the user doc is missing (e.g., after accidental deletion), recreate a minimal profile safely.
                          const bootstrap = {
-                             name: user.displayName || 'ব্যবহারকারী',
                              fullName: user.displayName || 'ব্যবহারকারী',
                              email: user.email || '',
                              mobile: '',
@@ -2381,7 +2377,7 @@
                                 console.error('Failed to bootstrap user doc:', e);
                             });
                          // Show temporary UI while the snapshot updates
-                         const profileData = { name: bootstrap.name, mobile: '', dob: '', balance: 0.00, isAdmin: false };
+                         const profileData = { fullName: bootstrap.fullName, mobile: '', dob: '', balance: 0.00, isAdmin: false };
                          isAdmin = false;
                          adminSettingsMenuBtn.classList.add('hidden');
                          renderSidebar(profileData);
@@ -2390,7 +2386,7 @@
                 }, (error) => {
                     console.error("Error fetching real-time profile data:", error);
                     showMessage("প্রোফাইল ডেটা লোড করতে সমস্যা হয়েছে।");
-                    const fallbackData = { name: user.displayName || 'ব্যবহারকারী', mobile: '', dob: '', balance: 0.00, isAdmin: false };
+                    const fallbackData = { fullName: user.displayName || 'ব্যবহারকারী', mobile: '', dob: '', balance: 0.00, isAdmin: false };
                     renderSidebar(fallbackData);
                     router();
                 });
@@ -2473,7 +2469,7 @@
         
         // [SECURE] আলাদা 'আমার প্রোফাইল' পেজ
         function renderMyProfile(profileData = {}) {
-            const name = profileData.name || 'ব্যবহারকারী';
+            const name = profileData.fullName || 'ব্যবহারকারী';
             const email = auth.currentUser?.email || '';
             const dob = profileData.dob || '';
             const mobile = profileData.mobile || '';

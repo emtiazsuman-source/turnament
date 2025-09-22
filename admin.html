@@ -317,7 +317,7 @@
         });
 
         function renderSidebar(profileData) {
-            const userName = profileData.name || profileData.fullName || 'ব্যবহারকারী';
+            const userName = profileData.fullName || 'ব্যবহারকারী';
             const userInitial = userName ? userName.charAt(0).toUpperCase() : ' ';
             sidebarUserName.textContent = userName;
             sidebarUserMobile.textContent = '';
@@ -645,7 +645,7 @@
                     const requestData = docSnap.data();
                     const userDocRef = doc(db, `artifacts/${appId}/users`, requestData.userId);
                     const userDoc = await getDoc(userDocRef);
-                    const userName = userDoc.exists() ? userDoc.data().name : 'Unknown User';
+                    const userName = userDoc.exists() ? (userDoc.data().fullName || 'Unknown User') : 'Unknown User';
                     requests.push({ id: docSnap.id, ...requestData, userName });
                 }
                 requestsListEl.innerHTML = '';
