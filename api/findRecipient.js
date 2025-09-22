@@ -52,7 +52,7 @@ export default async function handler(req, res) {
                     return res.status(400).json({ message: 'আপনি নিজের কাছে টাকা পাঠাতে পারবেন না।' });
                 }
                 const userData = doc.data();
-                return res.status(200).json({ uid: doc.id, name: userData.name, mobile: userData.mobile });
+                return res.status(200).json({ uid: doc.id, fullName: userData.fullName, mobile: userData.mobile });
             } else {
                  return res.status(404).json({ message: 'প্রাপককে খুঁজে পাওয়া যায়নি।' });
             }
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
         // প্রাপকের প্রয়োজনীয় তথ্য ক্লায়েন্টকে ফেরত পাঠান
         return res.status(200).json({
             uid: recipientDoc.id,
-            name: recipientData.name,
+            fullName: recipientData.fullName,
             mobile: recipientData.mobile
         });
 

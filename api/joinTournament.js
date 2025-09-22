@@ -198,7 +198,7 @@ export default async function handler(req, res) {
       tx.set(participantRef, {
         userId: uid,
         idValue: String(idValue),
-        fullName: u.fullName || u.name || 'User',
+        fullName: u.fullName || 'User',
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         entryFee: fee,
         // proof fields are set via PATCH/POST proof paths

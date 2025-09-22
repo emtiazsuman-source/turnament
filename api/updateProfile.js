@@ -32,10 +32,10 @@ export default async function handler(req, res) {
         const uid = decodedToken.uid;
 
         // ২. ক্লায়েন্টের কাছ থেকে নতুন তথ্য নিন
-        const { name, dob, mobile, pin } = req.body;
+        const { fullName, dob, mobile, pin } = req.body;
 
         // সাধারণ ইনপুট ভ্যালিডেশন
-        if (!name || !mobile || !pin || pin.length !== 4) {
+        if (!fullName || !mobile || !pin || pin.length !== 4) {
             return res.status(400).json({ message: 'Invalid input provided.' });
         }
         
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
         // ৫. সবকিছু ঠিক থাকলে, প্রোফাইল আপডেট করুন
         await userDocRef.update({
-            name: name,
+            fullName: fullName,
             dob: dob,
             mobile: mobile
             // এখানে পিন হ্যাশ আপডেট করা হচ্ছে না কারণ পিন শুধু ভেরিফিকেশনের জন্য
