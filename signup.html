@@ -55,24 +55,7 @@
         </svg>
           <span>Sign in with Google</span>
         </button>
-        <!-- PIN setup section (shown after successful signup or Google sign-in) -->
-        <div id="pin-section" class="mt-6 hidden">
-          <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
-            <h2 class="text-lg font-bold text-gray-800 mb-2">৪-সংখ্যার পিন সেট করুন</h2>
-            <p class="text-sm text-gray-600 mb-4">আপনার CashPoint অ্যাকাউন্ট সুরক্ষিত রাখতে একটি ৪-সংখ্যার পিন সেট করুন।</p>
-            <div class="space-y-3">
-              <div>
-                <label for="pin" class="block text-sm text-gray-600 mb-1">পিন</label>
-                <input id="pin" type="password" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="****" class="w-full p-3 form-input rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" />
-              </div>
-              <div>
-                <label for="pin2" class="block text-sm text-gray-600 mb-1">পিন নিশ্চিত করুন</label>
-                <input id="pin2" type="password" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="****" class="w-full p-3 form-input rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" />
-              </div>
-              <button id="save-pin-btn" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl transition">পিন সেভ করুন</button>
-            </div>
-          </div>
-        </div>
+        
         <p id="msg" class="mt-4 text-center text-sm text-gray-600"></p>
       </div>
     </div>
@@ -94,7 +77,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
@@ -116,24 +99,11 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) return;
-      try {
-        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
-        const snap = await getDoc(ref);
-        const pinHash = snap.exists() ? (snap.data().pinHash || 0) : 0;
-        if (Number(pinHash) > 0) {
-          window.location.replace('/');
-        } else {
-          pendingUser = user;
-          pinSection.classList.remove('hidden');
-        }
-      } catch (_) {
-        window.location.replace('/');
-      }
+      // User is authenticated; go to home/dashboard
+      window.location.replace('/');
     });
 
-    const pinSection = document.getElementById('pin-section');
-    const savePinBtn = document.getElementById('save-pin-btn');
-    let pendingUser = null; // holds the user who needs to set PIN
+    // PIN-related elements removed
 
     document.getElementById('signup-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -150,64 +120,38 @@
           mobile: '',
           dob: '',
           balance: 0.00,
-          isAdmin: false,
-          pinHash: 0
+          isAdmin: false
         }, { merge: true });
-        pendingUser = cred.user;
-        // show PIN section
-        pinSection.classList.remove('hidden');
-        msg('অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে একটি পিন সেট করুন।');
+        // Redirect directly after signup
+        window.location.replace('/');
       } catch (err) {
         msg('সাইন আপ ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
       }
     });
 
-    // Google sign-in (same behavior as login)
+    // Google sign-in
     document.getElementById('google-btn').addEventListener('click', async () => {
       msg('Google সাইন ইন হচ্ছে...');
       try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        const ref = doc(db, `artifacts/${"cashpoint-f8b51"}/users/${user.uid}`);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
-          await setDoc(ref, {
-            fullName: user.displayName || 'New User',
-            email: user.email || '',
-            balance: 0.00,
-            mobile: '',
-            dob: '',
-            isAdmin: false,
-            pinHash: 0
-          }, { merge: true });
-        }
-        pendingUser = user;
-        pinSection.classList.remove('hidden');
-        msg('সাইন ইন সফল। দয়া করে একটি পিন সেট করুন।');
+        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        await setDoc(ref, {
+          fullName: user.displayName || 'New User',
+          email: user.email || '',
+          balance: 0.00,
+          mobile: '',
+          dob: '',
+          isAdmin: false
+        }, { merge: true });
+        // Redirect directly after Google sign-in
+        window.location.replace('/');
       } catch (err) {
         msg('Google সাইন ইন ব্যর্থ হয়েছে।');
       }
     });
 
-    // Save PIN handler
-    if (savePinBtn) {
-      savePinBtn.addEventListener('click', async () => {
-        if (!pendingUser) { window.location.replace('/'); return; }
-        const p1 = (document.getElementById('pin').value || '').trim();
-        const p2 = (document.getElementById('pin2').value || '').trim();
-        if (!/^\d{4}$/.test(p1)) { msg('৪ সংখ্যার পিন দিন।'); return; }
-        if (p1 !== p2) { msg('পিন মেলেনি। আবার চেষ্টা করুন।'); return; }
-        msg('পিন সেভ হচ্ছে...');
-        try {
-          // simple numeric storage as pinHash (could be replaced with hash)
-          await setDoc(doc(db, `artifacts/${appId}/users/${pendingUser.uid}`), { pinHash: Number(p1) }, { merge: true });
-          msg('পিন সেভ হয়েছে।');
-          window.location.replace('/');
-        } catch (e) {
-          msg('পিন সেভ করতে সমস্যা হয়েছে।');
-        }
-      });
-    }
+    // PIN save handler removed
   </script>
 </body>
 </html>
