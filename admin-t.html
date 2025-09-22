@@ -1,3 +1,315 @@
 <!DOCTYPE html>
-<!-- Admin-only Tournament Panel: duplicated from turnament.html so /admin-t uses a separate file. -->
-<!-- Note: This file was generated as a copy of turnament.html at time of creation to decouple admin from user page. -->
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>T-Admin Panel - CashPoint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body { font-family: sans-serif; background-color: #f0f2f5; }
+    .gradient-bg { background: linear-gradient(135deg, #FF69B4, #E2136E); }
+  </style>
+  <!-- Vercel Web Analytics -->
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen">
+  <div id="app-container" class="relative w-full max-w-sm bg-white shadow-xl rounded-2xl overflow-hidden h-[95vh] max-h-[850px] flex flex-col">
+    <div id="message-box" class="absolute top-4 left-1/2 -translate-x-1/2 z-50 p-3 rounded-lg text-sm transition-all duration-300 transform scale-0" style="background-color: #1a1a1a; color: white;"></div>
+
+    <header class="w-full gradient-bg text-white py-4 px-6 flex items-center justify-between shadow-md flex-shrink-0">
+      <h1 class="text-2xl font-bold">T-Admin Panel</h1>
+      <button id="logout-btn" class="text-white text-sm bg-white/20 px-3 py-1 rounded hover:bg-white/30">লগআউট</button>
+    </header>
+
+    <main id="main-content" class="flex-grow flex flex-col p-4 overflow-y-auto"></main>
+
+    <div id="transaction-details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+      <div id="modal-content" class="bg-white rounded-2xl w-11/12 max-w-sm p-5 space-y-4 relative transform transition-transform scale-95"></div>
+    </div>
+
+    <div id="loading-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-40 hidden">
+      <div class="animate-spin rounded-full h-12 w-12 border-4 border-pink-600 border-t-transparent"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
+      authDomain: "cashpoint-f8b51.firebaseapp.com",
+      projectId: "cashpoint-f8b51",
+      storageBucket: "cashpoint-f8b51.firebasestorage.app",
+      messagingSenderId: "50891144664",
+      appId: "1:50891144664:web:e90f63977c95c86c04c6ad",
+      measurementId: "G-WJXSMFBEE6"
+    };
+    const appId = "cashpoint-f8b51";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const mainContent = document.getElementById('main-content');
+    const messageBox = document.getElementById('message-box');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const modal = document.getElementById('transaction-details-modal');
+    const modalContent = document.getElementById('modal-content');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    function showMessage(text, duration = 3000) {
+      messageBox.textContent = text;
+      messageBox.classList.remove('scale-0');
+      messageBox.classList.add('scale-100');
+      setTimeout(() => {
+        messageBox.classList.remove('scale-100');
+        messageBox.classList.add('scale-0');
+      }, duration);
+    }
+
+    function showLoading(show) {
+      if (show) loadingOverlay.classList.remove('hidden');
+      else loadingOverlay.classList.add('hidden');
+    }
+
+    logoutBtn.addEventListener('click', async () => {
+      try { await signOut(auth); showMessage('আপনি সফলভাবে লগআউট করেছেন।'); window.location.href = '/login'; } catch(e) { showMessage('লগআউট ব্যর্থ হয়েছে'); }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = '/login'; return; }
+      try {
+        showLoading(true);
+        const adminDoc = await getDoc(doc(db, `artifacts/${appId}/users/${user.uid}`));
+        const isAdmin = adminDoc.exists() && !!adminDoc.data().isAdmin;
+        if (!isAdmin) { window.location.href = '/'; return; }
+        renderUserDirectory();
+      } catch (e) {
+        console.error(e);
+        showMessage('লোড করতে সমস্যা হয়েছে।');
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    async function renderUserDirectory() {
+      mainContent.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex items-center space-x-2">
+            <input id="user-search-input" type="text" placeholder="নাম/মোবাইল সার্চ করুন..." class="flex-1 p-2 border border-gray-300 rounded-md">
+            <button id="refresh-users" class="px-3 py-2 bg-pink-600 text-white rounded-md">রিফ্রেশ</button>
+          </div>
+          <div id="users-list" class="space-y-2"></div>
+        </div>
+      `;
+      document.getElementById('refresh-users').addEventListener('click', loadUsers);
+      document.getElementById('user-search-input').addEventListener('input', filterUsers);
+      await loadUsers();
+    }
+
+    let cachedUsers = [];
+    async function loadUsers() {
+      showLoading(true);
+      const listEl = document.getElementById('users-list');
+      listEl.innerHTML = '<div class="text-center p-4 text-gray-500">লোড হচ্ছে...</div>';
+      try {
+        const snap = await getDocs(collection(db, `artifacts/${appId}/users`));
+        cachedUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderUsers(cachedUsers);
+      } catch (e) {
+        console.error(e);
+        listEl.innerHTML = '<div class="text-center p-4 text-red-500">ইউজার লোড করতে সমস্যা হয়েছে।</div>';
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function filterUsers(e) {
+      const q = e.target.value.toLowerCase();
+      const filtered = cachedUsers.filter(u =>
+        (u.fullName || '').toLowerCase().includes(q) ||
+        (u.mobile || '').toLowerCase().includes(q) ||
+        (u.id || '').toLowerCase().includes(q)
+      );
+      renderUsers(filtered);
+    }
+
+    function renderUsers(users) {
+      const listEl = document.getElementById('users-list');
+      listEl.innerHTML = '';
+      if (!users.length) {
+        listEl.innerHTML = '<div class="text-center p-4 text-gray-500">কোনো ইউজার পাওয়া যায়নি।</div>';
+        return;
+      }
+      users.forEach(u => {
+        const name = u.fullName || 'নাম নেই';
+        const balance = typeof u.balance === 'number' ? u.balance.toFixed(2) : '0.00';
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-lg shadow-sm p-3 flex items-center justify-between';
+        const left = document.createElement('div');
+        const nameEl = document.createElement('p');
+        nameEl.className = 'font-semibold text-gray-800 cursor-pointer hover:underline';
+        nameEl.textContent = name;
+        nameEl.title = 'প্রোফাইল দেখুন';
+        nameEl.addEventListener('click', () => showUserProfileModal(u.id));
+        const sub = document.createElement('p');
+        sub.className = 'text-xs text-gray-500';
+        sub.textContent = `মোবাইল: ${u.mobile || 'N/A'} • আইডি: ${u.id}`;
+        left.append(nameEl, sub);
+        const right = document.createElement('div');
+        right.className = 'text-right';
+        right.innerHTML = `<p class="text-sm text-gray-700">ব্যালেন্স</p><p class="text-lg font-bold text-gray-900">৳ ${balance}</p>`;
+        item.append(left, right);
+        listEl.appendChild(item);
+      });
+    }
+
+    async function showUserProfileModal(userId) {
+      try {
+        showLoading(true);
+        modalContent.innerHTML = '';
+
+        const userDocRef = doc(db, `artifacts/${appId}/users/${userId}`);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) { showMessage('ইউজার পাওয়া যায়নি'); return; }
+        const user = userDoc.data();
+
+        const txColRef = collection(db, `artifacts/${appId}/users/${userId}/transactions`);
+        const txSnap = await getDocs(txColRef);
+        const txs = txSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        txs.sort((a, b) => {
+          const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+          const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
+          return tb - ta;
+        });
+
+        const container = document.createElement('div');
+        container.className = 'space-y-3';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex items-start justify-between';
+        const titleEl = document.createElement('h3');
+        titleEl.className = 'text-lg font-bold text-gray-800';
+        titleEl.textContent = 'প্রোফাইল ও স্টেটমেন্ট';
+        const closeBtn = document.createElement('button');
+        closeBtn.id = 'close-user-profile-modal';
+        closeBtn.className = 'text-gray-500 hover:text-gray-700';
+        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        headerDiv.append(titleEl, closeBtn);
+
+        const profileBox = document.createElement('div');
+        profileBox.className = 'bg-gray-50 rounded-lg p-3';
+        profileBox.innerHTML = `
+          <p class="text-sm text-gray-700"><span class="font-semibold">নাম:</span> ${user.fullName || 'N/A'}</p>
+          <p class="text-sm text-gray-700"><span class="font-semibold">মোবাইল:</span> ${user.mobile || 'N/A'}</p>
+          <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId}</span></p>
+          <p class="text-sm text-gray-700"><span class="font-semibold">ব্যালেন্স:</span> ৳ ${(user.balance || 0).toFixed(2)}</p>
+        `;
+
+        const listWrap = document.createElement('div');
+        const listTitle = document.createElement('h4');
+        listTitle.className = 'text-md font-semibold text-gray-800 mb-2';
+        listTitle.textContent = 'সকল ট্রানজেকশন';
+        const listEl = document.createElement('div');
+        listEl.className = 'max-h-96 overflow-y-auto space-y-2';
+        if (txs.length === 0) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-500';
+          p.textContent = 'কোনো ট্রানজেকশন নেই।';
+          listEl.appendChild(p);
+        } else {
+          txs.forEach(tx => {
+            let statusText, statusColorClass;
+            switch (tx.status) {
+              case 'pending': statusText = 'অপেক্ষমাণ'; statusColorClass = 'text-orange-500'; break;
+              case 'rejected': statusText = 'ব্যর্থ'; statusColorClass = 'text-red-500'; break;
+              default: statusText = 'সফল'; statusColorClass = 'text-green-500'; break;
+            }
+
+            let iconClass, colorClass, amountPrefix, title = 'লেনদেন';
+            let firstChar = 'T';
+            const desc = tx.description || '';
+            switch (tx.type) {
+              case 'deposit':
+                iconClass = 'fa-plus'; colorClass = 'text-green-500'; amountPrefix = '+ ৳'; title = 'অ্যাড মানি'; firstChar = desc.charAt(0) || 'D';
+                break;
+              case 'send':
+                iconClass = 'fa-paper-plane'; colorClass = 'text-red-500'; amountPrefix = '- ৳'; title = 'সেন্ড মানি'; firstChar = (desc.split(' ')[2] || 'S').charAt(0);
+                break;
+              case 'receive':
+                iconClass = 'fa-inbox'; colorClass = 'text-green-500'; amountPrefix = '+ ৳'; title = 'রিসিভ মানি'; firstChar = (desc.split(' ')[2] || 'R').charAt(0);
+                break;
+              case 'transfer':
+                iconClass = 'fa-exchange-alt'; colorClass = 'text-red-500'; amountPrefix = '- ৳'; title = 'ট্রান্সফার'; firstChar = 'T';
+                break;
+              case 'tournament_join':
+                iconClass = 'fa-trophy'; colorClass = 'text-red-500'; amountPrefix = '- ৳'; title = 'টুর্নামেন্ট ফি'; firstChar = 'T';
+                break;
+              case 'tournament_prize':
+                iconClass = 'fa-trophy'; colorClass = 'text-green-500'; amountPrefix = '+ ৳'; title = 'টুর্নামেন্ট প্রাইজ'; firstChar = 'T';
+                break;
+              default:
+                iconClass = 'fa-receipt'; colorClass = 'text-gray-600'; amountPrefix = (Number(tx.amount) >= 0 ? '+ ৳' : '- ৳'); title = 'লেনদেন'; firstChar = 'T';
+                break;
+            }
+
+            const date = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : new Date();
+            const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            const amountVal = typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '0.00';
+            const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
+
+            const row = document.createElement('div');
+            row.className = 'flex items-center p-3 bg-white rounded-lg shadow-sm';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-pink-600 font-bold mr-4';
+            avatar.textContent = String(firstChar).toUpperCase();
+
+            const info = document.createElement('div');
+            info.className = 'flex-grow';
+            const titleP = document.createElement('p'); titleP.className = 'font-semibold text-gray-800'; titleP.textContent = title;
+            const trxIdP = document.createElement('p'); trxIdP.className = 'text-xs text-gray-500'; trxIdP.textContent = `TrxID: ${trxId}`;
+            const statusP = document.createElement('p'); statusP.className = `text-xs font-semibold ${statusColorClass}`; statusP.textContent = statusText;
+            info.append(titleP, trxIdP, statusP);
+
+            const amountDiv = document.createElement('div');
+            amountDiv.className = 'text-right';
+            const amountP = document.createElement('p'); amountP.className = `font-bold ${colorClass}`; amountP.textContent = `${amountPrefix}${amountVal}`;
+            const timeP = document.createElement('p'); timeP.className = 'text-xs text-gray-400'; timeP.textContent = `${time} ${dateStr}`;
+            amountDiv.append(amountP, timeP);
+
+            const chevronDiv = document.createElement('div');
+            chevronDiv.className = 'ml-3 text-gray-400';
+            chevronDiv.innerHTML = '<i class="fas fa-chevron-right"></i>';
+
+            row.append(avatar, info, amountDiv, chevronDiv);
+            listEl.appendChild(row);
+          });
+        }
+        listWrap.append(listTitle, listEl);
+
+        container.append(headerDiv, profileBox, listWrap);
+        modalContent.appendChild(container);
+        modal.classList.remove('hidden');
+        setTimeout(() => modalContent.classList.add('scale-100'), 10);
+
+        const close = () => {
+          modalContent.classList.remove('scale-100');
+          setTimeout(() => modal.classList.add('hidden'), 200);
+        };
+        document.getElementById('close-user-profile-modal').addEventListener('click', close, { once: true });
+        modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
+      } catch (err) {
+        console.error('Failed to load user profile:', err);
+        showMessage('ইউজার প্রোফাইল লোড করতে সমস্যা হয়েছে।');
+      } finally {
+        showLoading(false);
+      }
+    }
+  </script>
+</body>
+</html>
