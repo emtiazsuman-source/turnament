@@ -275,7 +275,7 @@
                         try {
                             await setDoc(userRef, {
                                 email: user.email || '',
-                                name: user.displayName || 'User', // Fix: Added 'name' field
+                                name: user.displayName || 'User',
                                 fullName: user.displayName || 'User',
                                 isAdmin: false,
                                 balance: 0,
@@ -288,7 +288,6 @@
                     }
                     const userData = docSnap.data();
                     if (userData) {
-                        // Fix: Check for 'name' first, then 'fullName' for consistency
                         const correctUserName = userData.name || userData.fullName || 'ব্যবহারকারী';
                         
                         document.getElementById('welcome-message').textContent = correctUserName;
@@ -316,7 +315,6 @@
                         if (window.location.pathname === '/admin-t') {
                             if (isAdminUser) {
                                 adminPostSectionEl.classList.remove('hidden');
-                                // ensure controls visible in case of late load
                                 if (!adminPostSectionEl.querySelector('#open-create-post-modal')) {
                                     renderAdminControls();
                                 }
@@ -334,11 +332,9 @@
             } else {
                 currentUser = null;
                 if (countdownInterval) clearInterval(countdownInterval);
-                if (postsUnsubscribe) postsUnsubscribe(); // Detach listener on logout
+                if (postsUnsubscribe) postsUnsubscribe();
                 appViewEl.classList.add('hidden');
-                // Hide role switch when logged out
                 roleSwitchEl.classList.add('hidden');
-                // Redirect to standalone login page
                 window.location.href = '/login';
             }
         });
@@ -367,7 +363,6 @@
             }
         }
 
-        // Clicking balance area opens wallet slider
         if (walletArea) {
             walletArea.onclick = () => {
                 openWalletSlider();
@@ -391,8 +386,6 @@
         if (sliderLogoutBtn) sliderLogoutBtn.onclick = async () => {
             try { await signOut(auth); } catch { showMessage('লগআউট করতে সমস্যা হয়েছে', 'error'); }
         };
-        
-        // Removed inline auth UI and handlers; using standalone /login, /signup, /forgot-password pages.
 
         // --- Countdown Timer Logic ---
         const startCountdownManager = () => {
@@ -451,7 +444,7 @@
                     const post = { id: postDoc.id, ...postDoc.data() };
                     const matchNumber = (post.matchNo !== undefined && post.matchNo !== null)
                         ? Number(post.matchNo)
-                        : (idx + 1); // fallback if not set
+                        : (idx + 1);
                     return createPostElement(post, currentUserRole, matchNumber);
                 });
 
@@ -568,7 +561,6 @@
             const mapName = (contestDetails.map ?? '—').toString();
             const postShortId = `#${String(matchNumber).padStart(4,'0')}`;
             
-            // MODIFICATION: Handle FREE entry fee
             const entryFeeValue = parseFloat(contestDetails.entryFee) || 0;
             const entryFeeHTML = entryFeeValue === 0
                 ? `<span data-field="entryFee">FREE</span>`
@@ -708,7 +700,7 @@
                         let currentVal = '';
                         if (key === 'startTime') {
                             const st = post.startTime ? post.startTime.toDate() : new Date(JSON.parse(post.contestDetails).startTime);
-                            currentVal = new Date(st).toISOString().slice(0,16); // yyyy-mm-ddThh:mm
+                            currentVal = new Date(st).toISOString().slice(0,16);
                         } else {
                             currentVal = JSON.parse(post.contestDetails)[key] ?? '';
                         }
@@ -760,26 +752,19 @@
 
         const showJoinFormInline = (post) => {
             const contestDetails = JSON.parse(post.contestDetails);
-            // Find the current post card and the join button
             const postElement = document.getElementById(`post-${post.id}`);
-            if (!postElement) return;
-
-            // Prevent re-initializing if already in confirm mode
-            if (postElement.dataset.confirmMode === 'true') return;
+            if (!postElement || postElement.dataset.confirmMode === 'true') return;
 
             const joinBtn = postElement.querySelector('.progress-join-btn');
             if (!joinBtn) return;
 
-            // The progress row that contains the progress bar and the join button
             const progressRow = joinBtn.closest('.flex.items-center.gap-4');
             if (!progressRow) return;
 
-            // Insert a compact form block ABOVE the progress row
             const formBlock = document.createElement('div');
             formBlock.id = `join-form-${post.id}`;
             formBlock.className = 'mb-2 p-3 rounded-lg bg-white border border-gray-200 space-y-2';
             
-            // MODIFICATION: Conditionally show the fee message
             const fee = parseFloat(contestDetails.entryFee) || 0;
             const feeMessageHTML = fee > 0 
                 ? `<p class="text-xs text-center text-red-600">আপনার ওয়ালেট থেকে ৳${fee} কেটে নেওয়া হবে।</p>` 
@@ -791,15 +776,11 @@
             `;
             progressRow.parentElement.insertBefore(formBlock, progressRow);
 
-            // Change Join button to Confirm (green) and add small cancel X icon next to it
-            // Keep original classes/text to restore on cancel
             const originalBtnText = joinBtn.textContent;
             const originalBtnClass = joinBtn.className;
-
             joinBtn.textContent = 'Confirm';
             joinBtn.className = 'progress-join-btn px-6 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition';
 
-            // Add a small cancel icon button just to the right of confirm
             let cancelBtn = document.createElement('button');
             cancelBtn.id = `cancel-join-icon-${post.id}`;
             cancelBtn.className = 'ml-2 w-9 h-9 flex items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100';
@@ -809,23 +790,17 @@
 
             postElement.dataset.confirmMode = 'true';
 
-            // Confirm click handler (now the former Join button)
             const confirmHandler = () => {
                 const idValue = document.getElementById(`user-id-input-${post.id}`).value;
                 handleJoinContest(post, idValue);
             };
             joinBtn.addEventListener('click', confirmHandler, { once: true });
 
-            // Cancel handler restores UI
             const cancelHandler = () => {
-                // Remove form
                 formBlock.remove();
-                // Restore button
                 joinBtn.textContent = originalBtnText;
                 joinBtn.className = originalBtnClass;
-                // Remove cancel icon
                 cancelBtn.remove();
-                // Clear state
                 delete postElement.dataset.confirmMode;
             };
             cancelBtn.addEventListener('click', cancelHandler, { once: true });
@@ -855,7 +830,6 @@
                         joinButtonContainer.innerHTML = `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>Joined</button>`;
                     }
 
-                    // Clean up inline confirm UI if present
                     const formBlock = postElement.querySelector(`#join-form-${postId}`);
                     if (formBlock) formBlock.remove();
                     const cancelIcon = postElement.querySelector(`#cancel-join-icon-${postId}`);
@@ -892,7 +866,6 @@
                     
                     postElement.dataset.joined = 'true';
 
-                    // Update compact progress meta and bar after join
                     const participantsCountEl = document.getElementById(`participants-${postId}`);
                     const spotsLeftEl = document.getElementById(`spots-left-${postId}`);
                     const fillEl = document.getElementById(`progress-fill-${postId}`);
@@ -1063,98 +1036,105 @@
             })
         };
 
-        const openCreatePostModal = () => {
-            const formHTML = `
-                <form id="contest-post-form" class="space-y-4">
+        // Refactored function to generate form HTML for both create and edit modals
+        const generateContestFormHTML = (data = {}, submitButtonText = 'পোস্ট করুন', formId = 'contest-post-form') => {
+            const d = data; // shorthand
+            let prizeFieldsHTML = '';
+            const prizes = d.prizes && Array.isArray(d.prizes) ? d.prizes : [{ position: '', amount: '' }];
+            prizes.forEach((prize, index) => {
+                prizeFieldsHTML += `
+                    <div class="flex items-center space-x-2">
+                        <input type="text" name="prize_position_${index}" placeholder="অবস্থান" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${prize.position || ''}" required>
+                        <input type="number" name="prize_amount_${index}" placeholder="পরিমাণ (৳)" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${prize.amount || ''}" required>
+                        <button type="button" class="remove-prize-btn ${index === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
+                    </div>`;
+            });
+
+            return `
+                <form id="${formId}" class="space-y-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">টুর্নামেন্টের নাম <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestName" placeholder="টুর্নামেন্টের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
+                            <input type="text" name="contestName" placeholder="টুর্নামেন্টের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.contestName || ''}" required>
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">Match No</label>
-                            <input type="number" name="matchNo" placeholder="1" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="number" name="matchNo" placeholder="1" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.matchNo || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">গেমের নাম (Headline)</label>
-                            <input type="text" name="gameName" placeholder="গেমের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="text" name="gameName" placeholder="গেমের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameName || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">গেম আইকন লিংক (Icon Link)</label>
-                            <input type="text" name="gameIconUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="text" name="gameIconUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameIconUrl || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">WIN PRIZE (ম্যানুয়াল)</label>
-                            <input type="text" name="winPrize" placeholder="যেমন: 500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="text" name="winPrize" placeholder="যেমন: 500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.winPrize || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">ENTRY FEE (এন্ট্রি ফি) <span class="text-red-500">*</span></label>
-                            <input type="number" name="entryFee" placeholder="এন্ট্রি ফি (৳)" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="number" name="entryFee" placeholder="এন্ট্রি ফি (৳)" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.entryFee || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">সর্বোচ্চ প্লেয়ার (Max Players) <span class="text-red-500">*</span></label>
-                            <input type="number" name="maxPlayers" placeholder="সর্বোচ্চ প্লেয়ার" required max="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="number" name="maxPlayers" placeholder="সর্বোচ্চ প্লেয়ার" required max="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.maxPlayers || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">PER KILL (পার কিল) (৳)</label>
-                            <input type="number" name="perKill" placeholder="যেমন: 5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="number" name="perKill" placeholder="যেমন: 5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.perKill || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">MAP (ম্যাপ)</label>
-                            <input type="text" name="map" placeholder="যেমন: Bermuda" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="text" name="map" placeholder="যেমন: Bermuda" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.map || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">VERSION (ভার্সন)</label>
-                            <input type="text" name="version" placeholder="যেমন: MOBILE" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="text" name="version" placeholder="যেমন: MOBILE" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.version || ''}">
                         </div>
                         <div class="flex flex-col col-span-2">
                             <label class="text-xs text-gray-600 mb-1">শুরুর সময় (Start Time) <span class="text-red-500">*</span></label>
-                            <input type="datetime-local" name="startTime" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="datetime-local" name="startTime" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.startTime || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">প্রয়োজনীয় আইডি টাইপ (Required ID Type) <span class="text-red-500">*</span></label>
-                            <input type="text" name="requiredIdType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: Free Fire ID">
+                            <input type="text" name="requiredIdType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: Free Fire ID" value="${d.requiredIdType || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">ENTRY TYPE (ধরণ) <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: 1v1, 2v2, Free for All">
+                            <input type="text" name="contestType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: 1v1, 2v2" value="${d.contestType || ''}">
                         </div>
                         <div class="col-span-2 mt-2">
                             <h4 class="text-sm font-semibold text-gray-700 mb-1">Room Details</h4>
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="flex flex-col">
                                     <label class="text-xs text-gray-600 mb-1">Room ID</label>
-                                    <input type="text" name="roomId" placeholder="রুম আইডি" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <input type="text" name="roomId" placeholder="রুম আইডি" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomId || ''}">
                                 </div>
                                 <div class="flex flex-col">
                                     <label class="text-xs text-gray-600 mb-1">Password</label>
-                                    <input type="text" name="roomPass" placeholder="রুম পাসওয়ার্ড" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <input type="text" name="roomPass" placeholder="রুম পাসওয়ার্ড" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomPass || ''}">
                                 </div>
                             </div>
                         </div>
                         <div class="flex flex-col col-span-2">
                             <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস (Status) <span class="text-red-500">*</span></label>
                             <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="complete">Complete</option>
+                                <option value="active" ${d.status === 'active' ? 'selected' : ''}>Active</option>
+                                <option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                                <option value="complete" ${d.status === 'complete' ? 'selected' : ''}>Complete</option>
                             </select>
                         </div>
                     </div>
                     
                     <div class="mt-4">
                         <h4 class="text-md font-semibold text-gray-600 mb-1">Total Prize Details (পুরস্কারের তালিকা)</h4>
-                        <div class="text-sm text-gray-700 mb-2">WIN PRIZE (ম্যানুয়াল): ৳<span id="win-prize-total">0</span></div>
-                        <div id="prize-list-container" class="space-y-2">
-                            <div class="flex items-center space-x-2">
-                                <input type="text" name="prize_position_0" placeholder="অবস্থান" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
-                                <input type="number" name="prize_amount_0" placeholder="পরিমাণ (৳)" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
-                                <button type="button" class="remove-prize-btn hidden bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                            </div>
-                        </div>
+                        <div id="prize-list-container" class="space-y-2">${prizeFieldsHTML}</div>
                         <button type="button" id="add-prize-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও পুরস্কার যোগ করুন</button>
                     </div>
-                    <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">পোস্ট করুন</button>
+
+                    <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">${submitButtonText}</button>
                     
                     <div class="flex items-center space-x-2 mt-2">
                         <button type="button" id="save-draft-btn" class="w-full bg-gray-500 text-white font-semibold py-2 rounded-lg hover:bg-gray-600 transition">ড্রাফট সেভ করুন</button>
@@ -1167,11 +1147,18 @@
                     </div>
                 </form>
             `;
+        };
+
+        const openCreatePostModal = () => {
+            const formHTML = generateContestFormHTML({}, 'পোস্ট করুন', 'contest-post-form');
             renderModal('createPostModal', 'নতুন টুর্নামেন্ট তৈরি করুন', formHTML);
+
             document.getElementById('contest-post-form').onsubmit = handleContestPost;
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#createPostModal');
+            document.querySelectorAll('#createPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#createPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#createPostModal');
+            
             setupPreviewListeners('#createPostModal');
             renderPreviewFromForm('#createPostModal');
         };
@@ -1183,8 +1170,6 @@
             const start = get('startTime');
             const dateText = start ? new Date(start).toLocaleString('en-US', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(',', ' at') : '';
             const manualWinPrize = (form.elements['winPrize']?.value || '').toString().trim();
-            const totalEl = document.querySelector(`${modalSelector} #win-prize-total`);
-            if (totalEl) totalEl.textContent = manualWinPrize || '0';
             const perKill = get('perKill');
             const perKillText = perKill ? `৳${perKill}` : '—';
             const maxPlayers = parseInt(get('maxPlayers','0'), 10) || 0;
@@ -1358,21 +1343,9 @@
                         const draftRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'tournamentDrafts', id);
                         const draftDoc = await getDoc(draftRef);
                         if (!draftDoc.exists()) return showMessage('ড্রাফট পাওয়া যায়নি!', 'error');
-                        const draft = draftDoc.data();
-                        const data = draft.data || {};
-                        document.querySelector('#draftsModal .close-button')?.click();
-                        await new Promise(r => setTimeout(r, 550));
-
-                        let form;
-                        if (modalSelector === '#createPostModal') {
-                            openCreatePostModal();
-                            await new Promise(r => setTimeout(r, 0));
-                            form = document.querySelector(`${modalSelector} form`);
-                            const modalEl = document.getElementById('createPostModal');
-                            if (modalEl && !modalEl.classList.contains('show')) modalEl.classList.add('show');
-                        } else {
-                            form = document.querySelector(`${modalSelector} form`);
-                        }
+                        
+                        const data = draftDoc.data().data || {};
+                        const form = document.querySelector(`${modalSelector} form`);
                         if (!form) return;
 
                         for (const key in data) {
@@ -1389,8 +1362,10 @@
                                 addPrizeField('', '', modalSelector);
                             }
                         }
+                        
+                        document.querySelector('#draftsModal .close-button')?.click();
                         showMessage('ড্রাফট লোড হয়েছে।', 'success');
-                        form.querySelector('input, select, textarea')?.focus();
+                        renderPreviewFromForm(modalSelector);
                     });
                 });
 
@@ -1697,82 +1672,30 @@
             const postData = postDoc.data();
             const contestDetails = JSON.parse(postData.contestDetails);
             
-            let prizeFieldsHTML = '';
-            (contestDetails.prizes || []).forEach((prize, index) => {
-                prizeFieldsHTML += `
-                    <div class="flex items-center space-x-2">
-                        <input type="text" name="prize_position_${index}" value="${prize.position}" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
-                        <input type="number" name="prize_amount_${index}" value="${prize.amount}" class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
-                        <button type="button" class="remove-prize-btn ${index === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                    </div>`;
-            });
-            
-            const startTimeForInput = postData.startTime ? new Date(postData.startTime.toDate().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, -8) : contestDetails.startTime;
+            // Prepare data for the form generator
+            const initialData = { ...contestDetails };
+            initialData.status = postData.status;
+            initialData.matchNo = postData.matchNo;
+            if (postData.startTime) {
+                // Convert Firestore Timestamp to a format suitable for datetime-local input
+                const date = postData.startTime.toDate();
+                // Adjust for timezone offset before converting to ISO string
+                const timezoneOffset = date.getTimezoneOffset() * 60000;
+                const localISOTime = new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+                initialData.startTime = localISOTime;
+            }
 
-            const modalContent = `
-                <form id="edit-post-form" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">টুর্নামেন্টের নাম <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestName" value="${contestDetails.contestName}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">গেমের নাম</label>
-                            <input type="text" name="gameName" value="${contestDetails.gameName}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">গেম আইকন লিংক</label>
-                            <input type="url" name="gameIconUrl" value="${contestDetails.gameIconUrl || ''}" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" pattern="https?://.*">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">এন্ট্রি ফি (৳) <span class="text-red-500">*</span></label>
-                            <input type="number" name="entryFee" value="${contestDetails.entryFee}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">সর্বোচ্চ প্লেয়ার <span class="text-red-500">*</span></label>
-                            <input type="number" name="maxPlayers" value="${contestDetails.maxPlayers}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col col-span-2">
-                            <label class="text-xs text-gray-600 mb-1">শুরুর সময় <span class="text-red-500">*</span></label>
-                            <input type="datetime-local" name="startTime" value="${startTimeForInput}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">প্রয়োজনীয় আইডি টাইপ <span class="text-red-500">*</span></label>
-                            <input type="text" name="requiredIdType" value="${contestDetails.requiredIdType || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: Free Fire ID">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">ধরণ <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestType" value="${contestDetails.contestType || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: 1v1, 2v2, Free for All">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">রুম আইডি</label>
-                            <input type="text" name="roomId" value="${contestDetails.roomId}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">রুম পাসওয়ার্ড</label>
-                            <input type="text" name="roomPass" value="${contestDetails.roomPass}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex flex-col col-span-2">
-                            <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস <span class="text-red-500">*</span></label>
-                            <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                <option value="active" ${postData.status === 'active' ? 'selected' : ''}>Active</option>
-                                <option value="inactive" ${postData.status === 'inactive' ? 'selected' : ''}>Inactive</option>
-                                <option value="complete" ${postData.status === 'complete' ? 'selected' : ''}>Complete</option>
-                            </select>
-                        </div>
-                    </div>
-                     <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-2">পুরস্কারের তালিকা</h4>
-                        <div id="prize-list-container" class="space-y-2">${prizeFieldsHTML}</div>
-                        <button type="button" id="add-prize-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও পুরস্কার যোগ করুন</button>
-                    </div>
-                    <button type="submit" class="w-full bg-yellow-600 text-white font-semibold py-2 rounded-lg hover:bg-yellow-700 transition mt-4">আপডেট করুন</button>
-                </form>
-            `;
-            renderModal('editPostModal', 'টুর্নামেন্ট এডিট করুন', modalContent);
+            const formHTML = generateContestFormHTML(initialData, 'আপডেট করুন', 'edit-post-form');
+            renderModal('editPostModal', 'টুর্নামেন্ট এডিট করুন', formHTML);
+
             document.getElementById('edit-post-form').onsubmit = (e) => handleUpdatePost(e, postId);
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#editPostModal');
-            document.querySelectorAll('#editPostModal #prize-list-container .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
+            document.querySelectorAll('#editPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
+            document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#editPostModal');
+            document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#editPostModal');
+
+            setupPreviewListeners('#editPostModal');
+            renderPreviewFromForm('#editPostModal');
         };
 
         const handleUpdatePost = async (e, postId) => {
@@ -1782,6 +1705,7 @@
             const prizes = [];
             let postStatus = 'active';
             let startTime = '';
+            let matchNo = undefined;
 
             for (let [key, value] of formData.entries()) {
                  if(key.startsWith('prize_position_')) {
@@ -1793,6 +1717,8 @@
                 } else if (key === 'startTime') {
                     startTime = value;
                     updatedDetails[key] = value;
+                } else if (key === 'matchNo') {
+                    matchNo = value ? parseInt(value, 10) : undefined;
                 }
                  else {
                     updatedDetails[key] = value;
@@ -1800,16 +1726,14 @@
             }
             updatedDetails.prizes = prizes;
 
-            if ((formData.get('requiredIdTypeCustom') || '').trim()) updatedDetails.requiredIdType = (formData.get('requiredIdTypeCustom') || '').trim();
-            if ((formData.get('contestTypeCustom') || '').trim()) updatedDetails.contestType = (formData.get('contestTypeCustom') || '').trim();
-
             loadingEl.classList.remove('hidden');
             try {
                 const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
                 await updateDoc(postRef, {
                     contestDetails: JSON.stringify(updatedDetails),
                     status: postStatus,
-                    startTime: new Date(startTime)
+                    startTime: new Date(startTime),
+                    ...(typeof matchNo === 'number' && !isNaN(matchNo) ? { matchNo } : {})
                 });
                 showMessage('টুর্নামেন্ট সফলভাবে আপডেট করা হয়েছে!', 'success');
                 document.getElementById('editPostModal').querySelector('.close-button').click();
