@@ -10,7 +10,6 @@
             font-family: sans-serif;
             background-color: #f0f2f5;
         }
-        
         .bg-cashpoint-pink {
             background-color: #E2136E;
         }
@@ -91,11 +90,8 @@
 
         <header id="header" class="w-full gradient-bg text-white py-4 px-6 flex items-center justify-between shadow-md flex-shrink-0">
             <h1 class="text-2xl font-bold">CashPoint</h1>
-            <div class="flex items-center gap-2">
-                <button id="users-directory-btn" class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-sm"><i class="fas fa-users"></i> Users</button>
-                <div id="user-info-header" class="flex items-center space-x-2">
-                    <span id="header-user-name" class="font-medium text-sm"></span>
-                </div>
+            <div id="user-info-header" class="flex items-center space-x-2">
+                <span id="header-user-name" class="font-medium text-sm"></span>
             </div>
         </header>
 
@@ -210,7 +206,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, runTransaction, collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, deleteDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, runTransaction, collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, deleteDoc, updateDoc, increment, orderBy, startAt, endAt, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
@@ -274,6 +270,126 @@
                     }
                 };
             });
+        }
+
+        // --- User Search Tab ---
+        function renderUserSearch() {
+            const adminContentArea = document.getElementById('admin-content-area');
+            adminContentArea.innerHTML = `
+                <div class="space-y-3">
+                    <div class="grid grid-cols-1 gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="user-search-input" placeholder="UserID / ইমেইল / মোবাইল / নাম" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-cashpoint-pink focus:border-cashpoint-pink">
+                            <select id="user-search-field" class="p-2 border border-gray-300 rounded-md">
+                                <option value="auto">Auto</option>
+                                <option value="uid">User ID</option>
+                                <option value="email">ইমেইল</option>
+                                <option value="mobile">মোবাইল</option>
+                                <option value="name">নাম</option>
+                            </select>
+                            <button id="user-search-btn" class="py-2 px-3 bg-cashpoint-pink text-white rounded-md font-semibold">সার্চ</button>
+                        </div>
+                        <p class="text-xs text-gray-500">নোট: নাম দিয়ে সার্চ করলে শুরু অংশ মিলিয়ে ফলাফল দেখাবে। অন্যগুলোতে একদম সঠিক মিল প্রয়োজন।</p>
+                    </div>
+                    <div id="user-search-results" class="space-y-2"></div>
+                </div>
+            `;
+
+            const input = document.getElementById('user-search-input');
+            const btn = document.getElementById('user-search-btn');
+            const fieldSel = document.getElementById('user-search-field');
+
+            const doSearch = async () => {
+                const termRaw = (input.value || '').trim();
+                const field = fieldSel.value;
+                const resultsEl = document.getElementById('user-search-results');
+                resultsEl.innerHTML = '<div class="text-center p-4 text-gray-500">সার্চ হচ্ছে...</div>';
+                if (!termRaw) { resultsEl.innerHTML = '<div class="text-center p-4 text-gray-500">অনুগ্রহ করে সার্চ টেক্সট লিখুন।</div>'; return; }
+
+                try {
+                    let users = [];
+                    const usersCol = collection(db, `artifacts/${appId}/users`);
+                    const addUserDoc = (id, data) => { users.push({ id, ...data }); };
+
+                    const autoDetect = () => {
+                        if (termRaw.includes('@')) return 'email';
+                        if (/^\d{10,15}$/.test(termRaw)) return 'mobile';
+                        if (/^[A-Za-z0-9_-]{20,}$/.test(termRaw)) return 'uid';
+                        return 'name';
+                    };
+
+                    const mode = field === 'auto' ? autoDetect() : field;
+
+                    if (mode === 'uid') {
+                        const snap = await getDoc(doc(db, `artifacts/${appId}/users/${termRaw}`));
+                        if (snap.exists()) addUserDoc(snap.id, snap.data());
+                    } else if (mode === 'email') {
+                        const qy = query(usersCol, where('email', '==', termRaw));
+                        const snap = await getDocs(qy);
+                        snap.forEach(d => addUserDoc(d.id, d.data()));
+                    } else if (mode === 'mobile') {
+                        const qy = query(usersCol, where('mobile', '==', termRaw));
+                        const snap = await getDocs(qy);
+                        snap.forEach(d => addUserDoc(d.id, d.data()));
+                    } else if (mode === 'name') {
+                        // Try prefix search on fullName
+                        const start = termRaw;
+                        const end = termRaw + '\uf8ff';
+                        try {
+                            const qy = query(usersCol, orderBy('fullName'), startAt(start), endAt(end), limit(25));
+                            const snap = await getDocs(qy);
+                            snap.forEach(d => addUserDoc(d.id, d.data()));
+                        } catch (e) {
+                            // Fallback to exact match if index/orderBy unavailable
+                            const qy2 = query(usersCol, where('fullName', '==', termRaw));
+                            const snap2 = await getDocs(qy2);
+                            snap2.forEach(d => addUserDoc(d.id, d.data()));
+                        }
+                    }
+
+                    resultsEl.innerHTML = '';
+                    if (users.length === 0) {
+                        resultsEl.innerHTML = '<div class="text-center p-4 text-gray-500">কোনো ফলাফল পাওয়া যায়নি।</div>';
+                        return;
+                    }
+
+                    users.forEach(u => {
+                        const row = document.createElement('div');
+                        row.className = 'flex items-center justify-between p-3 bg-white rounded-lg shadow-sm';
+                        const left = document.createElement('div');
+                        left.className = 'min-w-0';
+                        left.innerHTML = `
+                            <p class="font-semibold text-gray-800 truncate cursor-pointer hover:underline" title="প্রোফাইল দেখুন">${u.fullName || 'Unknown'}</p>
+                            <p class="text-xs text-gray-500">মোবাইল: ${u.mobile || 'N/A'}</p>
+                            <p class="text-[10px] text-gray-400 font-mono truncate">UID: ${u.id}</p>`;
+
+                        const right = document.createElement('div');
+                        right.className = 'text-right';
+                        right.innerHTML = `
+                            <p class="text-sm font-bold text-gray-800">৳ ${(u.balance || 0).toFixed(2)}</p>
+                            <button class="mt-1 py-1 px-2 text-xs bg-cashpoint-pink text-white rounded" data-uid="${u.id}">প্রোফাইল</button>`;
+
+                        // Clicks to open profile
+                        left.querySelector('p.font-semibold').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showUserProfileModal(u.id);
+                        });
+                        right.querySelector('button').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showUserProfileModal(u.id);
+                        });
+
+                        row.append(left, right);
+                        resultsEl.appendChild(row);
+                    });
+                } catch (err) {
+                    console.error('User search failed:', err);
+                    resultsEl.innerHTML = '<div class="text-center p-4 text-red-500">সার্চ করতে সমস্যা হয়েছে।</div>';
+                }
+            };
+
+            btn.addEventListener('click', doSearch);
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
         }
 
         const mainContent = document.getElementById('main-content');
@@ -368,18 +484,6 @@
                         window.location.href = '/';
                     }
                     break;
-                case '/admin/users':
-                    if (!isAdminKnown) {
-                        mainContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-600">Checking permissions...</div>';
-                        return;
-                    }
-                    if (isAdmin) {
-                        renderUsersDirectory();
-                    } else {
-                        history.replaceState(null, null, '/');
-                        window.location.href = '/';
-                    }
-                    break;
                 default:
                     // Any other path should route back to /admin within this page
                     if (path !== '/admin') {
@@ -437,10 +541,6 @@
         if (homeBtn) { homeBtn.addEventListener('click', () => { window.location.href = '/cashpoint'; }); }
         if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { window.location.href = '/cashpoint'; menuSidebar.classList.remove('open'); }); }
         if (tAdminMenuBtn) { tAdminMenuBtn.addEventListener('click', () => { window.location.href = '/admin-t'; menuSidebar.classList.remove('open'); }); }
-        const usersDirectoryBtn = document.getElementById('users-directory-btn');
-        if (usersDirectoryBtn) {
-            usersDirectoryBtn.addEventListener('click', () => navigateTo('/admin/users'));
-        }
 
         async function handleLogout() {
             try { await signOut(auth); showMessage("আপনি সফলভাবে লগআউট করেছেন।"); } catch (e) { showMessage("লগআউট ব্যর্থ হয়েছে।"); }
@@ -465,9 +565,6 @@
             if(headerH1) headerH1.textContent = 'Admin Panel';
             const userInfoHeader = document.getElementById('user-info-header');
             if(userInfoHeader) userInfoHeader.innerHTML = '';
-            // Show Users button for admins
-            const usersBtn = document.getElementById('users-directory-btn');
-            if (usersBtn) usersBtn.classList.remove('hidden');
             
             mainContent.innerHTML = `
                 <div class="flex flex-col h-full p-4 space-y-4">
@@ -475,6 +572,7 @@
                         <button id="add-money-tab" class="tab-btn py-2 px-4 text-sm font-semibold border-b-2 border-transparent focus:outline-none">অ্যাড মানি</button>
                         <button id="transfer-money-tab" class="tab-btn py-2 px-4 text-sm font-semibold border-b-2 border-transparent focus:outline-none">ট্রান্সফার মানি</button>
                         <button id="charge-settings-tab" class="tab-btn py-2 px-4 text-sm font-semibold border-b-2 border-transparent focus:outline-none">সেটিংস</button>
+                        <button id="user-search-tab" class="tab-btn py-2 px-4 text-sm font-semibold border-b-2 border-transparent focus:outline-none">ব্যবহারকারী সার্চ</button>
                     </div>
                     <div id="admin-content-area" class="space-y-4 flex-grow overflow-y-auto"></div>
                 </div>
@@ -483,6 +581,7 @@
             const addMoneyTab = document.getElementById('add-money-tab');
             const transferMoneyTab = document.getElementById('transfer-money-tab');
             const chargeSettingsTab = document.getElementById('charge-settings-tab');
+            const userSearchTab = document.getElementById('user-search-tab');
             
             const setActiveTab = (tab) => {
                 addMoneyTab.classList.remove('add-money-active');
@@ -496,12 +595,15 @@
                     renderRequestFiltersAndList(tabName);
                 } else if (tabName === 'charge-settings') {
                     renderChargeSettingsForm();
+                } else if (tabName === 'user-search') {
+                    renderUserSearch();
                 }
             };
 
             addMoneyTab.addEventListener('click', () => { setActiveTab(addMoneyTab); loadTabContent('add-money'); });
             transferMoneyTab.addEventListener('click', () => { setActiveTab(transferMoneyTab); loadTabContent('transfer-money'); });
             chargeSettingsTab.addEventListener('click', () => { setActiveTab(chargeSettingsTab); loadTabContent('charge-settings'); });
+            userSearchTab.addEventListener('click', () => { setActiveTab(userSearchTab); loadTabContent('user-search'); });
 
             setActiveTab(addMoneyTab);
             loadTabContent('add-money');
