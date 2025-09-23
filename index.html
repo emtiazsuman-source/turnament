@@ -1465,7 +1465,7 @@
                             <div class="bg-slate-100 p-3 rounded-lg flex flex-col gap-2">
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
-                                        <p class="font-semibold"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}">${player.fullName}</span></p>
+                                        <p class="font-semibold"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}" data-idvalue="${player.idValue}">${player.fullName}</span></p>
                                         <p class="text-xs text-gray-500">ID: ${player.idValue}</p>
                                     </div>
                                     <div class="flex-shrink-0">
@@ -1509,6 +1509,29 @@
                     </form>
                 `;
                 renderModal('managePrizesModal', 'পুরস্কার ম্যানেজ করুন', modalContent);
+
+                // Inject "User+ID" button in the modal header to add serial numbers and IDs next to names
+                const prizesHeaderEl = document.querySelector('#managePrizesModal .modal-content header');
+                if (prizesHeaderEl) {
+                    const userIdBtn = document.createElement('button');
+                    userIdBtn.id = 'apply-user-id-btn';
+                    userIdBtn.className = 'ml-auto mr-2 text-xs px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700';
+                    userIdBtn.textContent = 'User+ID';
+                    const closeBtnEl = prizesHeaderEl.querySelector('.close-button');
+                    prizesHeaderEl.insertBefore(userIdBtn, closeBtnEl || null);
+
+                    userIdBtn.addEventListener('click', () => {
+                        const nameLinks = document.querySelectorAll('#managePrizesModal .user-name-link');
+                        let idx = 1;
+                        nameLinks.forEach((el) => {
+                            const original = el.dataset.original || el.textContent;
+                            el.dataset.original = original; // preserve original
+                            const idVal = el.dataset.idvalue || '';
+                            el.textContent = `${idx}. ${original} (${idVal})`;
+                            idx += 1;
+                        });
+                    });
+                }
 
                 document.getElementById('save-progress-btn').onclick = () => handleSaveDistribution(postId);
                 document.getElementById('confirm-distribute-btn').onclick = () => handleConfirmDistribution(postId);
