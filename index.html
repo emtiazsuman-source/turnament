@@ -1235,8 +1235,19 @@
             document.getElementById('contest-post-form').onsubmit = handleContestPost;
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#createPostModal');
             document.querySelectorAll('#createPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
-            // Join fields wiring
-            document.getElementById('add-join-field-btn').onclick = () => addJoinField('', true, '#createPostModal');
+            // Join fields wiring (scoped to modal)
+            const createJoinAddBtn = document.querySelector('#createPostModal #add-join-field-btn');
+            if (createJoinAddBtn) createJoinAddBtn.onclick = () => addJoinField('', true, '#createPostModal');
+            const createModalRoot = document.getElementById('createPostModal');
+            if (createModalRoot) {
+                createModalRoot.addEventListener('click', (e) => {
+                    const t = e.target.closest('#add-join-field-btn');
+                    if (t) {
+                        e.preventDefault();
+                        addJoinField('', true, '#createPostModal');
+                    }
+                });
+            }
             document.querySelectorAll('#createPostModal .remove-join-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#createPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#createPostModal');
@@ -1839,8 +1850,19 @@
             document.getElementById('edit-post-form').onsubmit = (e) => handleUpdatePost(e, postId);
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#editPostModal');
             document.querySelectorAll('#editPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
-            // Join fields wiring
-            document.getElementById('add-join-field-btn').onclick = () => addJoinField('', true, '#editPostModal');
+            // Join fields wiring (scoped to modal)
+            const editJoinAddBtn = document.querySelector('#editPostModal #add-join-field-btn');
+            if (editJoinAddBtn) editJoinAddBtn.onclick = () => addJoinField('', true, '#editPostModal');
+            const editModalRoot = document.getElementById('editPostModal');
+            if (editModalRoot) {
+                editModalRoot.addEventListener('click', (e) => {
+                    const t = e.target.closest('#add-join-field-btn');
+                    if (t) {
+                        e.preventDefault();
+                        addJoinField('', true, '#editPostModal');
+                    }
+                });
+            }
             document.querySelectorAll('#editPostModal .remove-join-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#editPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#editPostModal');
