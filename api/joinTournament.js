@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
-    const { postId, idValue, note, screenshotUrl, extraFields } = req.body || {};
+    const { postId, idValue, note, screenshotUrl } = req.body || {};
 
     const appId = process.env.APP_ID;
     if (!appId) {
@@ -147,42 +147,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'অবৈধ এন্ট্রি ফি।' });
     }
 
-    // Validate required custom join fields, if any
-    let sanitizedExtra = {};
-    try {
-      const ef = (extraFields && typeof extraFields === 'object') ? extraFields : {};
-      // If admin configured joinFields, ensure required ones are present
-      const joinFieldsCfg = Array.isArray(contestDetails.joinFields) ? contestDetails.joinFields : [];
-      // Backward compatibility: if there is exactly 1 join field and client didn't send key, map idValue to it
-      if (joinFieldsCfg.length === 1) {
-        const onlyLabel = (joinFieldsCfg[0]?.label || '').toString();
-        if (onlyLabel && (ef[onlyLabel] === undefined || ef[onlyLabel] === '')) {
-          ef[onlyLabel] = String(idValue);
-        }
-      }
-      // Validate required fields
-      for (const f of joinFieldsCfg) {
-        const label = (f?.label || '').toString();
-        const required = f?.required !== false; // default required
-        if (required) {
-          const val = ef[label];
-          if (typeof val !== 'string' || !val.trim()) {
-            return res.status(400).json({ message: `জয়েনের জন্য "${label}" ফিল্ডটি প্রয়োজন।` });
-          }
-        }
-      }
-      // Sanitize: keep only configured labels to avoid noisy data
-      if (joinFieldsCfg.length > 0) {
-        joinFieldsCfg.forEach(f => {
-          const label = (f?.label || '').toString();
-          if (label && typeof ef[label] === 'string') sanitizedExtra[label] = ef[label].trim();
-        });
-      } else {
-        // If no config, but client sent extra fields, keep string pairs
-        Object.keys(ef).forEach(k => { if (typeof ef[k] === 'string') sanitizedExtra[k] = ef[k].trim(); });
-      }
-    } catch {}
-
     // Perform atomic updates
     await db.runTransaction(async (tx) => {
       const freshUser = await tx.get(userRef);
@@ -237,7 +201,6 @@ export default async function handler(req, res) {
         fullName: u.fullName || 'User',
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         entryFee: fee,
-        extraFields: sanitizedExtra,
         // proof fields are set via PATCH/POST proof paths
       });
     });
