@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
-    const { postId, idValue, note, screenshotUrl } = req.body || {};
+    const { postId, idValues, note, screenshotUrl } = req.body || {}; // ✅ **পরিবর্তন #১:** 'idValue' পরিবর্তন করে 'idValues' করা হয়েছে
 
     const appId = process.env.APP_ID;
     if (!appId) {
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     }
 
     // POST fallback: submit proof (when frontend cannot use PATCH)
-    if (req.method === 'POST' && postId && !idValue && (typeof note === 'string' || typeof screenshotUrl === 'string')) {
+    if (req.method === 'POST' && postId && !idValues && (typeof note === 'string' || typeof screenshotUrl === 'string')) {
       const [postSnap, participantSnap] = await Promise.all([
         postRef.get(),
         participantRef.get(),
@@ -98,9 +98,17 @@ export default async function handler(req, res) {
     }
 
     // POST: join tournament
-    if (!postId || !idValue || typeof idValue !== 'string') {
-      return res.status(400).json({ message: 'postId এবং idValue সঠিকভাবে দিন।' });
+    // ✅ **পরিবর্তন #২:** ভ্যালিডেশন 'idValue' থেকে 'idValues' এর জন্য আপডেট করা হয়েছে
+    if (!postId || !idValues || typeof idValues !== 'object' || Object.keys(idValues).length === 0) {
+      return res.status(400).json({ message: ' postId এবং প্রয়োজনীয় সকল আইডি সঠিকভাবে দিন।' });
     }
+     // Check if any of the idValues are empty
+    for (const key in idValues) {
+        if (typeof idValues[key] !== 'string' || !idValues[key].trim()) {
+            return res.status(400).json({ message: `অনুগ্রহ করে '${key}' সঠিকভাবে পূরণ করুন।` });
+        }
+    }
+
 
     // Read required docs
     const [userSnap, postSnap, existingParticipantSnap, participantsSnap] = await Promise.all([
@@ -142,7 +150,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'টুর্নামেন্ট পূর্ণ।' });
     }
     
-    // ✅ **সংশোধন #১:** এখানে <= 0 থেকে < 0 করা হয়েছে
     if (!Number.isFinite(entryFee) || entryFee < 0) {
       return res.status(400).json({ message: 'অবৈধ এন্ট্রি ফি।' });
     }
@@ -167,7 +174,6 @@ export default async function handler(req, res) {
       
       const fee = Number(cd.entryFee || 0);
       
-      // ✅ **সংশোধন #২:** এখানেও <= 0 থেকে < 0 করা হয়েছে
       if (!Number.isFinite(fee) || fee < 0) {
         throw new Error('অবৈধ এন্ট্রি ফি।');
       }
@@ -195,9 +201,10 @@ export default async function handler(req, res) {
         metadata: { postId, contestName: cd.contestName || null }
       });
 
+      // ✅ **পরিবর্তন #৩:** এখানে 'idValue' এর পরিবর্তে 'idValues' অবজেক্ট সেভ করা হচ্ছে
       tx.set(participantRef, {
         userId: uid,
-        idValue: String(idValue),
+        idValues: idValues, // Save the entire object of IDs
         fullName: u.fullName || 'User',
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         entryFee: fee,
