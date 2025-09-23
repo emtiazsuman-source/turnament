@@ -88,7 +88,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -119,6 +119,26 @@
       window.location.replace('/');
     });
 
+    // Complete redirect-based Google sign-in if returning from redirect
+    try {
+      const redirectResult = await getRedirectResult(auth);
+      if (redirectResult && redirectResult.user) {
+        const user = redirectResult.user;
+        const ref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        await setDoc(ref, {
+          fullName: user.displayName || 'New User',
+          email: user.email || '',
+          balance: 0.00,
+          mobile: '',
+          dob: '',
+          isAdmin: false
+        }, { merge: true });
+        window.location.replace('/');
+      }
+    } catch (err) {
+      console.error('Redirect sign-in error:', err);
+    }
+
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       msg('সাইন ইন হচ্ছে...');
@@ -134,7 +154,9 @@
         }
         window.location.replace('/');
       } catch (err) {
-        msg('সাইন ইন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+        console.error('Email sign-in error:', err);
+        const details = err && (err.code || err.message) ? ` (${err.code || err.message})` : '';
+        msg(`সাইন ইন ব্যর্থ হয়েছে${details}। আবার চেষ্টা করুন।`);
       }
     });
 
@@ -154,7 +176,18 @@
         }, { merge: true });
         window.location.replace('/');
       } catch (err) {
-        msg('Google সাইন ইন ব্যর্থ হয়েছে।');
+        console.error('Google sign-in error:', err);
+        if (err && err.code === 'auth/popup-blocked') {
+          msg('Popup ব্লক হয়েছে, redirect মেথড ব্যবহার করা হচ্ছে...');
+          try {
+            await signInWithRedirect(auth, provider);
+            return; // Control will continue after redirect
+          } catch (redirErr) {
+            console.error('signInWithRedirect error:', redirErr);
+          }
+        }
+        const details = err && (err.code || err.message) ? ` (${err.code || err.message})` : '';
+        msg(`Google সাইন ইন ব্যর্থ হয়েছে${details}।`);
       }
     });
 
