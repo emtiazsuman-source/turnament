@@ -1834,13 +1834,75 @@
                 const userDoc = await getDoc(userDocRef);
                 if (!userDoc.exists()) return showMessage('ইউজার পাওয়া যায়নি', 'error');
                 const user = userDoc.data();
+
+                // Load transactions
+                const txColRef = collection(db, 'artifacts', appId, 'users', userId, 'transactions');
+                const txSnap = await getDocs(txColRef);
+                const txs = txSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                txs.sort((a, b) => {
+                    const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+                    const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
+                    return tb - ta;
+                });
+
+                const buildTxRow = (tx) => {
+                    let statusText = 'সফল', statusClass = 'text-green-600';
+                    if (tx.status === 'pending') { statusText = 'অপেক্ষমাণ'; statusClass = 'text-orange-500'; }
+                    else if (tx.status === 'rejected') { statusText = 'ব্যর্থ'; statusClass = 'text-red-600'; }
+
+                    let title = 'লেনদেন', amountPrefix = '+ ৳', amountColor = 'text-green-600';
+                    let firstChar = 'T';
+                    const desc = tx.description || '';
+                    switch (tx.type) {
+                        case 'deposit': title = 'অ্যাড মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; firstChar = desc.charAt(0) || 'D'; break;
+                        case 'send': title = 'সেন্ড মানি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; firstChar = (desc.split(' ')[2] || 'S').charAt(0); break;
+                        case 'receive': title = 'রিসিভ মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; firstChar = (desc.split(' ')[2] || 'R').charAt(0); break;
+                        case 'transfer': title = 'ট্রান্সফার'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+                        case 'tournament_join': title = 'টুর্নামেন্ট ফি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+                        case 'tournament_prize': title = 'টুর্নামেন্ট প্রাইজ'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+                        default: amountPrefix = (Number(tx.amount) >= 0 ? '+ ৳' : '- ৳'); amountColor = (Number(tx.amount) >= 0 ? 'text-green-600' : 'text-red-600');
+                    }
+
+                    const date = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : new Date();
+                    const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                    const amountVal = Math.abs(Number(tx.amount) || 0).toFixed(2);
+                    const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
+
+                    return `
+                        <div class="flex items-center p-3 bg-white rounded-lg shadow-sm">
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold mr-4">${String(firstChar).toUpperCase()}</div>
+                            <div class="flex-grow">
+                                <p class="font-semibold text-gray-800">${title}</p>
+                                <p class="text-xs text-gray-500">TrxID: ${trxId}</p>
+                                <p class="text-xs font-semibold ${statusClass}">${statusText}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold ${amountColor}">${amountPrefix}${amountVal}</p>
+                                <p class="text-xs text-gray-400">${time} ${dateStr}</p>
+                            </div>
+                            <div class="ml-3 text-gray-400"><i class="fas fa-chevron-right"></i></div>
+                        </div>`;
+                };
+
+                let txListHTML = '';
+                if (txs.length === 0) {
+                    txListHTML = '<p class="text-sm text-gray-500">কোনো ট্রানজেকশন নেই।</p>';
+                } else {
+                    txListHTML = txs.map(buildTxRow).join('');
+                }
+
                 const content = `
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                         <div class="bg-slate-50 rounded-lg p-3">
                             <p class="text-sm text-gray-700"><span class="font-semibold">নাম:</span> ${user.fullName || 'N/A'}</p>
                             <p class="text-sm text-gray-700"><span class="font-semibold">মোবাইল:</span> ${user.mobile || 'N/A'}</p>
-                            <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId}</span></p>
+                            <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId}</span> <button class="text-xs text-blue-600 underline" onclick="copyToClipboard('${userId}')">কপি</button></p>
                             <p class="text-sm text-gray-700"><span class="font-semibold">ব্যালেন্স:</span> ৳ ${(user.balance || 0).toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <h4 class="text-md font-semibold text-gray-800 mb-2">সকল ট্রানজেকশন</h4>
+                            <div class="max-h-96 overflow-y-auto space-y-2">${txListHTML}</div>
                         </div>
                     </div>
                 `;
