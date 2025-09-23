@@ -34,7 +34,7 @@
         <button type="submit" class="w-full py-3 bg-cashpoint-pink text-white font-bold rounded-xl transition">সাইন ইন</button>
       </form>
       <div class="flex items-center justify-between mt-4 text-sm">
-        <a href="#" id="forgot-link" class="text-cashpoint-pink hover:underline">পাসওয়ার্ড ভুলে গেছেন?</a>
+        <a href="./forgot-password.html" class="text-cashpoint-pink hover:underline">পাসওয়ার্ড ভুলে গেছেন?</a>
         <a href="/signup" class="text-cashpoint-pink hover:underline">অ্যাকাউন্ট তৈরি করুন</a>
       </div>
       <div class="my-4 flex items-center gap-3">
@@ -52,17 +52,7 @@
         <span>Sign in with Google</span>
       </button>
 
-      <!-- Forgot Password section (inline) -->
-      <div id="reset-section" class="mt-4 hidden">
-        <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
-          <h3 class="font-semibold text-gray-800 mb-2">পাসওয়ার্ড রিসেট</h3>
-          <p class="text-sm text-gray-600 mb-3">আপনার ইমেইলে একটি রিসেট লিংক পাঠানো হবে।</p>
-          <div class="flex gap-2">
-            <input id="reset-email" type="email" class="flex-1 p-3 form-input border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cashpoint-pink" placeholder="you@example.com" />
-            <button id="reset-btn" class="px-4 py-3 bg-cashpoint-pink text-white font-semibold rounded-xl">পাঠান</button>
-          </div>
-        </div>
-      </div>
+      <!-- Forgot password moved to dedicated page: forgot-password.html -->
 
       
       <p id="msg" class="mt-4 text-center text-sm text-gray-600"></p>
@@ -88,7 +78,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -108,10 +98,7 @@
     const provider = new GoogleAuthProvider();
 
     const msg = (t) => document.getElementById('msg').textContent = t || '';
-    const resetSection = document.getElementById('reset-section');
-    const forgotLink = document.getElementById('forgot-link');
-    const resetBtn = document.getElementById('reset-btn');
-    // PIN-related variables removed
+    // Forgot-password UI handled on separate page; removed related variables
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) return;
@@ -191,26 +178,7 @@
       }
     });
 
-    // Forgot password
-    if (forgotLink) {
-      forgotLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        resetSection.classList.toggle('hidden');
-      });
-    }
-    if (resetBtn) {
-      resetBtn.addEventListener('click', async () => {
-        const email = (document.getElementById('reset-email').value || '').trim();
-        if (!email) { msg('ইমেইল দিন।'); return; }
-        msg('রিসেট লিংক পাঠানো হচ্ছে...');
-        try {
-          await sendPasswordResetEmail(auth, email);
-          msg('রিসেট লিংক পাঠানো হয়েছে। আপনার ইমেইল দেখুন।');
-        } catch (_) {
-          msg('রিসেট লিংক পাঠাতে সমস্যা হয়েছে।');
-        }
-      });
-    }
+    // Forgot password link navigates to dedicated page; inline reset logic removed
 
     // PIN save handler removed
   </script>
