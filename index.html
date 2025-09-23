@@ -762,23 +762,15 @@
 
             const formBlock = document.createElement('div');
             formBlock.id = `join-form-${post.id}`;
+            formBlock.className = 'mb-2 p-3 rounded-lg bg-white border border-gray-200 space-y-2';
+            
             const fee = parseFloat(contestDetails.entryFee) || 0;
             const feeMessageHTML = fee > 0 
                 ? `<p class="text-xs text-center text-red-600">আপনার ওয়ালেট থেকে ৳${fee} কেটে নেওয়া হবে।</p>` 
                 : '';
 
-            // Build inputs for join fields
-            const fields = Array.isArray(contestDetails.joinFields) && contestDetails.joinFields.length
-                ? contestDetails.joinFields
-                : ((contestDetails.requiredIdType ? [{ label: contestDetails.requiredIdType, required: true }] : []));
-            const fieldsHTML = (fields || []).map((f, idx) => {
-                const label = (f.label || `Field ${idx+1}`).toString();
-                // No 'required' attribute; admin "Required" flag removed
-                return `<input type="text" data-join-key="f${idx}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2" placeholder="${label}">`;
-            }).join('');
-
             formBlock.innerHTML = `
-                ${fieldsHTML || `<input type="text" id="user-id-input-${post.id}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="আপনার আইডি দিন">`}
+                <input type="text" id="user-id-input-${post.id}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="আপনার ${contestDetails.requiredIdType} দিন">
                 ${feeMessageHTML}
             `;
             progressRow.parentElement.insertBefore(formBlock, progressRow);
@@ -798,20 +790,8 @@
             postElement.dataset.confirmMode = 'true';
 
             const confirmHandler = () => {
-                // idValue: pick first non-empty input value; still send all as extraFields
-                const allInputs = Array.from(formBlock.querySelectorAll('input[type="text"]'));
-                let idValue = '';
-                for (const inp of allInputs) {
-                    const v = (inp.value || '').trim();
-                    if (v) { idValue = v; break; }
-                }
-                const extraFields = {};
-                const inputs = Array.from(formBlock.querySelectorAll('input[type="text"][data-join-key]'));
-                inputs.forEach((inp, i) => {
-                    const labelText = inp.getAttribute('placeholder') || `Field ${i+1}`;
-                    extraFields[labelText] = (inp.value || '').trim();
-                });
-                handleJoinContest(post, idValue, extraFields);
+                const idValue = document.getElementById(`user-id-input-${post.id}`).value;
+                handleJoinContest(post, idValue);
             };
             joinBtn.addEventListener('click', confirmHandler, { once: true });
 
@@ -825,7 +805,7 @@
             cancelBtn.addEventListener('click', cancelHandler, { once: true });
         };
 
-        const handleJoinContest = async (post, idValue, extraFields = {}) => {
+        const handleJoinContest = async (post, idValue) => {
             if (!idValue.trim()) return showMessage('অনুগ্রহ করে আপনার আইডি লিখুন।', 'error');
             const postId = post.id;
             try {
@@ -834,7 +814,7 @@
                 const resp = await fetch('/api/joinTournament', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ postId, idValue, extraFields })
+                    body: JSON.stringify({ postId, idValue })
                 });
                 const data = await resp.json();
                 if (!resp.ok) throw new Error(data.message || 'Join failed');
@@ -1069,36 +1049,6 @@
                     </div>`;
             });
 
-            // Build Join Fields (custom fields users may fill when joining)
-            let joinFieldsHTML = '';
-            const joinFields = Array.isArray(d.joinFields) && d.joinFields.length ? d.joinFields : [];
-            if (joinFields.length === 0) {
-                // Fallback: show a single field from requiredIdType if present
-                const placeholder = (d.requiredIdType || '').toString();
-                if (placeholder) {
-                    joinFieldsHTML += `
-                        <div class="flex items-center space-x-2">
-                            <input type="text" name="join_label_0" placeholder="ফিল্ড লেবেল" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${placeholder}" required>
-                            <button type="button" class="remove-join-btn hidden bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                        </div>`;
-                } else {
-                    joinFieldsHTML += `
-                        <div class="flex items-center space-x-2">
-                            <input type="text" name="join_label_0" placeholder="ফিল্ড লেবেল (যেমন: Free Fire ID)" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="" required>
-                            <button type="button" class="remove-join-btn hidden bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                        </div>`;
-                }
-            } else {
-                joinFields.forEach((field, index) => {
-                    const label = (field.label || '').toString();
-                    joinFieldsHTML += `
-                        <div class="flex items-center space-x-2">
-                            <input type="text" name="join_label_${index}" placeholder="ফিল্ড লেবেল" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${label}" required>
-                            <button type="button" class="remove-join-btn ${index === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                        </div>`;
-                });
-            }
-
             return `
                 <form id="${formId}" class="space-y-4">
                     <div class="grid grid-cols-2 gap-3">
@@ -1148,32 +1098,7 @@
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">প্রয়োজনীয় আইডি টাইপ (Required ID Type) <span class="text-red-500">*</span></label>
-                            <div id="join-fields-container" class="space-y-2">
-                                ${(() => {
-                                    const jf = Array.isArray(d.joinFields) && d.joinFields.length ? d.joinFields : [];
-                                    let html = '';
-                                    if (jf.length === 0) {
-                                        const seed = (d.requiredIdType || '').toString();
-                                        html += `
-                                            <div class="flex items-center space-x-2">
-                                                <input type="text" name="join_label_0" placeholder="যেমন: Free Fire ID" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${seed}" required>
-                                                <button type="button" class="remove-join-btn hidden bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                                            </div>`;
-                                    } else {
-                                        jf.forEach((f, i) => {
-                                            const label = (f.label || '').toString();
-                                            html += `
-                                                <div class="flex items-center space-x-2">
-                                                    <input type="text" name="join_label_${i}" placeholder="ফিল্ড লেবেল" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${label}" required>
-                                                    <button type="button" class="remove-join-btn ${i === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
-                                                </div>`;
-                                        });
-                                    }
-                                    return html;
-                                })()}
-                            </div>
-                            <button type="button" class="mt-2 text-sm text-gray-400 font-semibold cursor-not-allowed" disabled title="Disabled">+ আরও ফিল্ড যোগ করুন</button>
-                            <input type="hidden" name="requiredIdType" value="${(Array.isArray(d.joinFields) && d.joinFields[0]?.label) || (d.requiredIdType || '')}">
+                            <input type="text" name="requiredIdType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: Free Fire ID" value="${d.requiredIdType || ''}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">ENTRY TYPE (ধরণ) <span class="text-red-500">*</span></label>
@@ -1208,8 +1133,6 @@
                         <button type="button" id="add-prize-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও পুরস্কার যোগ করুন</button>
                     </div>
 
-                    
-
                     <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">${submitButtonText}</button>
                     
                     <div class="flex items-center space-x-2 mt-2">
@@ -1232,13 +1155,10 @@
             document.getElementById('contest-post-form').onsubmit = handleContestPost;
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#createPostModal');
             document.querySelectorAll('#createPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
-            // Join fields add button intentionally disabled; no wiring
-            document.querySelectorAll('#createPostModal .remove-join-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#createPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#createPostModal');
             
             setupPreviewListeners('#createPostModal');
-            syncJoinFirstLabel('#createPostModal');
             renderPreviewFromForm('#createPostModal');
         };
 
@@ -1474,7 +1394,6 @@
             const formData = new FormData(e.target);
             const contestDetails = {};
             const prizes = [];
-            const joinFields = [];
             let postStatus = 'active';
             let startTime = '';
             let matchNo = undefined;
@@ -1484,10 +1403,6 @@
                     const index = key.split('_')[2];
                     const amount = formData.get(`prize_amount_${index}`);
                     prizes.push({ position: value, amount: amount });
-                } else if (key.startsWith('join_label_')) {
-                    const idx = key.split('_')[2];
-                    const label = value;
-                    if (label) joinFields.push({ label });
                 } else if (key === 'status') {
                     postStatus = value;
                 } else if (key === 'startTime') {
@@ -1501,12 +1416,6 @@
                 }
             }
             contestDetails.prizes = prizes;
-            // Sync requiredIdType to the first join field for backward compatibility
-            if (joinFields.length > 0) {
-                contestDetails.joinFields = joinFields;
-                contestDetails.requiredIdType = joinFields[0].label || '';
-            }
-            if (joinFields.length) contestDetails.joinFields = joinFields;
 
             loadingEl.classList.remove('hidden');
             try {
@@ -1589,10 +1498,8 @@
                 }
 
                 const modalContent = `
-                    <div class="mb-4">
-                        <h3 class="font-bold text-lg mb-2">পুরস্কার বিতরণের চূড়ান্ত প্রিভিউ</h3>
-                        <p class="text-sm text-gray-500 mb-4">নিচের তালিকাটি সর্বোচ্চ পুরস্কার থেকে সর্বনিম্ন অনুযায়ী সাজানো এবং প্রতিটি বিজয়ীর পাশে আপনার নোট যুক্ত আছে।</p>
-                        <div class="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">${playersHTML}</div>
+                    <div class="space-y-3">
+                        ${playersHTML}
                     </div>
                     <form id="prize-distribution-form" data-post-id="${postId}">
                         <div class="flex items-center space-x-2 mt-4">
@@ -1836,13 +1743,10 @@
             document.getElementById('edit-post-form').onsubmit = (e) => handleUpdatePost(e, postId);
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#editPostModal');
             document.querySelectorAll('#editPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
-            // Join fields add button intentionally disabled; no wiring
-            document.querySelectorAll('#editPostModal .remove-join-btn').forEach(btn => btn.onclick = (e) => e.target.parentElement.remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#editPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#editPostModal');
 
             setupPreviewListeners('#editPostModal');
-            syncJoinFirstLabel('#editPostModal');
             renderPreviewFromForm('#editPostModal');
         };
 
@@ -1851,7 +1755,6 @@
             const formData = new FormData(e.target);
             const updatedDetails = {};
             const prizes = [];
-            const joinFields = [];
             let postStatus = 'active';
             let startTime = '';
             let matchNo = undefined;
@@ -1861,11 +1764,6 @@
                     const index = key.split('_')[2];
                     const amount = formData.get(`prize_amount_${index}`);
                     if(value && amount) prizes.push({ position: value, amount: amount });
-                } else if (key.startsWith('join_label_')) {
-                    const idx = key.split('_')[2];
-                    const label = value;
-                    const req = formData.get(`join_required_${idx}`) ? true : false;
-                    if (label) joinFields.push({ label, required: req });
                 } else if (key === 'status') {
                     postStatus = value;
                 } else if (key === 'startTime') {
@@ -1879,10 +1777,6 @@
                 }
             }
             updatedDetails.prizes = prizes;
-            if (joinFields.length) {
-                updatedDetails.joinFields = joinFields;
-                updatedDetails.requiredIdType = joinFields[0].label || '';
-            }
 
             loadingEl.classList.remove('hidden');
             try {
@@ -2105,16 +1999,6 @@
             `;
             renderModal('trxDetailsFromIndex', 'লেনদেনের বিস্তারিত', details);
         }
-
-        // Ensure '+ আরও ফিল্ড যোগ করুন' under Required ID Type always works
-        document.addEventListener('click', (ev) => {
-            const btn = ev.target.closest('#add-join-field-btn');
-            if (!btn) return;
-            ev.preventDefault();
-            const modalSel = btn.closest('#createPostModal') ? '#createPostModal' : (btn.closest('#editPostModal') ? '#editPostModal' : null);
-            if (!modalSel) return;
-            try { addJoinField('', true, modalSel); } catch (e) { console.error('addJoinField error', e); }
-        });
     </script>
 </body>
 </html>
