@@ -2133,6 +2133,16 @@
             `;
             renderModal('trxDetailsFromIndex', 'লেনদেনের বিস্তারিত', details);
         }
+
+        // Ensure '+ আরও ফিল্ড যোগ করুন' under Required ID Type always works
+        document.addEventListener('click', (ev) => {
+            const btn = ev.target.closest('#add-join-field-btn');
+            if (!btn) return;
+            ev.preventDefault();
+            const modalSel = btn.closest('#createPostModal') ? '#createPostModal' : (btn.closest('#editPostModal') ? '#editPostModal' : null);
+            if (!modalSel) return;
+            try { addJoinField('', true, modalSel); } catch (e) { console.error('addJoinField error', e); }
+        });
     </script>
 </body>
 </html>
