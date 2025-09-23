@@ -10,6 +10,7 @@
             font-family: sans-serif;
             background-color: #f0f2f5;
         }
+        
         .bg-cashpoint-pink {
             background-color: #E2136E;
         }
@@ -90,8 +91,11 @@
 
         <header id="header" class="w-full gradient-bg text-white py-4 px-6 flex items-center justify-between shadow-md flex-shrink-0">
             <h1 class="text-2xl font-bold">CashPoint</h1>
-            <div id="user-info-header" class="flex items-center space-x-2">
-                <span id="header-user-name" class="font-medium text-sm"></span>
+            <div class="flex items-center gap-2">
+                <button id="users-directory-btn" class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-sm"><i class="fas fa-users"></i> Users</button>
+                <div id="user-info-header" class="flex items-center space-x-2">
+                    <span id="header-user-name" class="font-medium text-sm"></span>
+                </div>
             </div>
         </header>
 
@@ -364,6 +368,18 @@
                         window.location.href = '/';
                     }
                     break;
+                case '/admin/users':
+                    if (!isAdminKnown) {
+                        mainContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-600">Checking permissions...</div>';
+                        return;
+                    }
+                    if (isAdmin) {
+                        renderUsersDirectory();
+                    } else {
+                        history.replaceState(null, null, '/');
+                        window.location.href = '/';
+                    }
+                    break;
                 default:
                     // Any other path should route back to /admin within this page
                     if (path !== '/admin') {
@@ -421,6 +437,10 @@
         if (homeBtn) { homeBtn.addEventListener('click', () => { window.location.href = '/cashpoint'; }); }
         if (homeBtnMenu) { homeBtnMenu.addEventListener('click', () => { window.location.href = '/cashpoint'; menuSidebar.classList.remove('open'); }); }
         if (tAdminMenuBtn) { tAdminMenuBtn.addEventListener('click', () => { window.location.href = '/admin-t'; menuSidebar.classList.remove('open'); }); }
+        const usersDirectoryBtn = document.getElementById('users-directory-btn');
+        if (usersDirectoryBtn) {
+            usersDirectoryBtn.addEventListener('click', () => navigateTo('/admin/users'));
+        }
 
         async function handleLogout() {
             try { await signOut(auth); showMessage("আপনি সফলভাবে লগআউট করেছেন।"); } catch (e) { showMessage("লগআউট ব্যর্থ হয়েছে।"); }
@@ -445,6 +465,9 @@
             if(headerH1) headerH1.textContent = 'Admin Panel';
             const userInfoHeader = document.getElementById('user-info-header');
             if(userInfoHeader) userInfoHeader.innerHTML = '';
+            // Show Users button for admins
+            const usersBtn = document.getElementById('users-directory-btn');
+            if (usersBtn) usersBtn.classList.remove('hidden');
             
             mainContent.innerHTML = `
                 <div class="flex flex-col h-full p-4 space-y-4">
