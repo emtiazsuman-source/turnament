@@ -1605,8 +1605,10 @@
                 }
 
                 const modalContent = `
-                    <div class="space-y-3">
-                        ${playersHTML}
+                    <div class="mb-4">
+                        <h3 class="font-bold text-lg mb-2">পুরস্কার বিতরণের চূড়ান্ত প্রিভিউ</h3>
+                        <p class="text-sm text-gray-500 mb-4">নিচের তালিকাটি সর্বোচ্চ পুরস্কার থেকে সর্বনিম্ন অনুযায়ী সাজানো এবং প্রতিটি বিজয়ীর পাশে আপনার নোট যুক্ত আছে।</p>
+                        <div class="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">${playersHTML}</div>
                     </div>
                     <form id="prize-distribution-form" data-post-id="${postId}">
                         <div class="flex items-center space-x-2 mt-4">
