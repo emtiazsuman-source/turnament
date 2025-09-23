@@ -778,7 +778,7 @@
 
             requiredIdTypes.forEach(type => {
                 if(type && type.trim()){
-                    idInputsHTML += `<input type="text" data-id-type="${type}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="আপনার ${type} দিন">`;
+                    idInputsHTML += `<input type="text" data-id-type="${type}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="${type}">`;
                 }
             });
 
