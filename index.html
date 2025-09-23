@@ -1870,7 +1870,18 @@
                     const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
 
                     return `
-                        <div class="flex items-center p-3 bg-white rounded-lg shadow-sm">
+                        <div class="tx-row flex items-center p-3 bg-white rounded-lg shadow-sm" 
+                             data-type="${tx.type || ''}"
+                             data-status="${tx.status || ''}"
+                             data-amount="${Number(tx.amount) || 0}"
+                             data-charge="${tx.charge ?? ''}"
+                             data-method="${tx.method || ''}"
+                             data-senderemail="${tx.senderEmail || ''}"
+                             data-recipientemail="${tx.recipientEmail || ''}"
+                             data-sendernumber="${tx.senderNumber || ''}"
+                             data-recipientnumber="${tx.recipientNumber || ''}"
+                             data-trxid="${trxId}"
+                             data-timestamp="${date.getTime()}">
                             <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold mr-4">${String(firstChar).toUpperCase()}</div>
                             <div class="flex-grow">
                                 <p class="font-semibold text-gray-800">${title}</p>
@@ -1907,10 +1918,86 @@
                     </div>
                 `;
                 renderModal('userProfileModal', 'ইউজার প্রোফাইল', content);
+                // Bind click handlers to open full transaction view
+                setTimeout(() => {
+                    document.querySelectorAll('#userProfileModal .tx-row').forEach(row => {
+                        row.addEventListener('click', () => {
+                            const ds = row.dataset;
+                            const tx = {
+                                type: ds.type || undefined,
+                                status: ds.status || undefined,
+                                amount: Number(ds.amount) || 0,
+                                charge: ds.charge !== '' ? Number(ds.charge) : undefined,
+                                method: ds.method || undefined,
+                                senderEmail: ds.senderemail || undefined,
+                                recipientEmail: ds.recipientemail || undefined,
+                                senderNumber: ds.sendernumber || undefined,
+                                recipientNumber: ds.recipientnumber || undefined,
+                                transactionId: ds.trxid || undefined,
+                                timestamp: { toDate: () => new Date(Number(ds.timestamp || Date.now())) }
+                            };
+                            showTransactionDetails(tx, userId);
+                        });
+                    });
+                }, 0);
             } catch (err) {
                 console.error('Failed to open user profile', err);
                 showMessage('ইউজার প্রোফাইল লোড করতে সমস্যা হয়েছে।', 'error');
             }
+        }
+        
+        // Full transaction view similar to /admin-t implementation
+        function showTransactionDetails(tx, userId) {
+            let title = 'লেনদেন';
+            let amountPrefix = '+ ৳';
+            let amountColor = 'text-green-600';
+            switch (tx.type) {
+                case 'deposit': title = 'অ্যাড মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+                case 'send': title = 'সেন্ড মানি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+                case 'receive': title = 'রিসিভ মানি'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+                case 'transfer': title = 'ট্রান্সফার'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+                case 'tournament_prize': title = 'টুর্নামেন্ট প্রাইজ'; amountPrefix = '+ ৳'; amountColor = 'text-green-600'; break;
+                case 'tournament_join': title = 'টুর্নামেন্ট ফি'; amountPrefix = '- ৳'; amountColor = 'text-red-600'; break;
+            }
+
+            let statusText = 'সফল', statusClass = 'text-green-600';
+            if (tx.status === 'pending') { statusText = 'অপেক্ষমাণ'; statusClass = 'text-orange-500'; }
+            else if (tx.status === 'rejected') { statusText = 'ব্যর্থ'; statusClass = 'text-red-600'; }
+
+            const date = tx.timestamp && tx.timestamp.toDate ? tx.timestamp.toDate() : new Date();
+            const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            const amount = Number(tx.amount) || 0;
+            const trxId = tx.transactionId || tx.txId || tx.reference || tx.id || 'N/A';
+            const chargeVal = typeof tx.charge === 'number' ? tx.charge.toFixed(2) : '0.00';
+
+            const details = `
+                <div class="space-y-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">${title}</h3>
+                            <span class="text-xs font-semibold ${statusClass}">${statusText}</span>
+                        </div>
+                        <button class="text-gray-500 hover:text-gray-700 close-button"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="text-2xl font-extrabold ${amount >= 0 ? 'text-green-600' : 'text-red-600'}">${amountPrefix}${Math.abs(amount).toFixed(2)}</div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <dl class="text-sm text-gray-700 space-y-1">
+                            <div class="flex justify-between"><dt class="font-medium">বিবরণ:</dt><dd>${tx.description || ''}</dd></div>
+                            <div class="flex justify-between"><dt class="font-medium">সময়:</dt><dd>${time} ${dateStr}</dd></div>
+                            ${tx.charge !== undefined ? `<div class="flex justify-between"><dt class="font-medium">চার্জ:</dt><dd>৳ ${chargeVal}</dd></div>` : ''}
+                            ${tx.method ? `<div class="flex justify-between"><dt class="font-medium">মেথড:</dt><dd>${tx.method}</dd></div>` : ''}
+                            ${tx.senderEmail ? `<div class="flex justify-between"><dt class="font-medium">প্রেরকের ইমেইল:</dt><dd class="font-mono">${tx.senderEmail}</dd></div>` : ''}
+                            ${tx.recipientEmail ? `<div class="flex justify-between"><dt class="font-medium">প্রাপকের ইমেইল:</dt><dd class="font-mono">${tx.recipientEmail}</dd></div>` : ''}
+                            ${tx.senderNumber ? `<div class="flex justify-between"><dt class="font-medium">প্রেরক নম্বর:</dt><dd class="font-mono">${tx.senderNumber}</dd></div>` : ''}
+                            ${tx.recipientNumber ? `<div class="flex justify-between"><dt class="font-medium">গ্রাহক নম্বর:</dt><dd class="font-mono">${tx.recipientNumber}</dd></div>` : ''}
+                            <div class="flex items-center justify-between"><dt class="font-medium">ট্রানজেকশন আইডি:</dt><dd class="flex items-center gap-2 font-mono">${trxId}<button class="text-xs text-blue-600 underline" onclick="copyToClipboard('${trxId}')">কপি</button></dd></div>
+                            ${userId ? `<div class="flex justify-between"><dt class="font-medium">ইউজার আইডি:</dt><dd class="font-mono">${userId}</dd></div>` : ''}
+                        </dl>
+                    </div>
+                </div>
+            `;
+            renderModal('trxDetailsFromIndex', 'লেনদেনের বিস্তারিত', details);
         }
     </script>
 </body>
