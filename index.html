@@ -1148,7 +1148,35 @@
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">প্রয়োজনীয় আইডি টাইপ (Required ID Type) <span class="text-red-500">*</span></label>
-                            <input type="text" name="requiredIdType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: Free Fire ID" value="${d.requiredIdType || ''}">
+                            <div id="join-fields-container" class="space-y-2">
+                                ${(() => {
+                                    const jf = Array.isArray(d.joinFields) && d.joinFields.length ? d.joinFields : [];
+                                    let html = '';
+                                    if (jf.length === 0) {
+                                        const seed = (d.requiredIdType || '').toString();
+                                        html += `
+                                            <div class="flex items-center space-x-2">
+                                                <input type="text" name="join_label_0" placeholder="যেমন: Free Fire ID" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${seed}" required>
+                                                <label class="flex items-center space-x-1 text-xs text-gray-600"><input type="checkbox" name="join_required_0" checked> <span>Required</span></label>
+                                                <button type="button" class="remove-join-btn hidden bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
+                                            </div>`;
+                                    } else {
+                                        jf.forEach((f, i) => {
+                                            const label = (f.label || '').toString();
+                                            const req = f.required === false ? '' : 'checked';
+                                            html += `
+                                                <div class="flex items-center space-x-2">
+                                                    <input type="text" name="join_label_${i}" placeholder="ফিল্ড লেবেল" class="w-2/3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${label}" required>
+                                                    <label class="flex items-center space-x-1 text-xs text-gray-600"><input type="checkbox" name="join_required_${i}" ${req}> <span>Required</span></label>
+                                                    <button type="button" class="remove-join-btn ${i === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
+                                                </div>`;
+                                        });
+                                    }
+                                    return html;
+                                })()}
+                            </div>
+                            <button type="button" id="add-join-field-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও ফিল্ড যোগ করুন</button>
+                            <input type="hidden" name="requiredIdType" value="${(Array.isArray(d.joinFields) && d.joinFields[0]?.label) || (d.requiredIdType || '')}">
                         </div>
                         <div class="flex flex-col">
                             <label class="text-xs text-gray-600 mb-1">ENTRY TYPE (ধরণ) <span class="text-red-500">*</span></label>
@@ -1183,12 +1211,7 @@
                         <button type="button" id="add-prize-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও পুরস্কার যোগ করুন</button>
                     </div>
 
-                    <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-1">Join Fields (জয়েনের সময় প্রয়োজনীয় ফিল্ড)</h4>
-                        <p class="text-xs text-gray-500 mb-2">এখানে আপনি ১/২/৩/৪ যেকোনো সংখ্যা অনুযায়ী ফিল্ড যোগ করতে পারেন। ইউজার জয়েন করার সময় এগুলো পূরণ করবে।</p>
-                        <div id="join-fields-container" class="space-y-2">${joinFieldsHTML}</div>
-                        <button type="button" id="add-join-field-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও ফিল্ড যোগ করুন</button>
-                    </div>
+                    
 
                     <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">${submitButtonText}</button>
                     
@@ -1219,6 +1242,7 @@
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#createPostModal');
             
             setupPreviewListeners('#createPostModal');
+            syncJoinFirstLabel('#createPostModal');
             renderPreviewFromForm('#createPostModal');
         };
 
@@ -1482,13 +1506,11 @@
                 }
             }
             contestDetails.prizes = prizes;
-            // Collect any dynamically added join fields too
-            const dynamicJoinLabels = Array.from(e.target.querySelectorAll('input[name="join_label_dynamic"]'));
-            dynamicJoinLabels.forEach((inputEl) => {
-                const label = inputEl.value.trim();
-                const req = inputEl.parentElement.querySelector('input[name="join_required_dynamic"]').checked;
-                if (label) joinFields.push({ label, required: req });
-            });
+            // Sync requiredIdType to the first join field for backward compatibility
+            if (joinFields.length > 0) {
+                contestDetails.joinFields = joinFields;
+                contestDetails.requiredIdType = joinFields[0].label || '';
+            }
             if (joinFields.length) contestDetails.joinFields = joinFields;
 
             loadingEl.classList.remove('hidden');
@@ -1824,6 +1846,7 @@
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#editPostModal');
 
             setupPreviewListeners('#editPostModal');
+            syncJoinFirstLabel('#editPostModal');
             renderPreviewFromForm('#editPostModal');
         };
 
@@ -1860,14 +1883,10 @@
                 }
             }
             updatedDetails.prizes = prizes;
-            // Also collect dynamically added join fields
-            const dynamicJoinLabels = Array.from(e.target.querySelectorAll('input[name="join_label_dynamic"]'));
-            dynamicJoinLabels.forEach((inputEl) => {
-                const label = inputEl.value.trim();
-                const req = inputEl.parentElement.querySelector('input[name="join_required_dynamic"]').checked;
-                if (label) joinFields.push({ label, required: req });
-            });
-            if (joinFields.length) updatedDetails.joinFields = joinFields;
+            if (joinFields.length) {
+                updatedDetails.joinFields = joinFields;
+                updatedDetails.requiredIdType = joinFields[0].label || '';
+            }
 
             loadingEl.classList.remove('hidden');
             try {
