@@ -281,6 +281,59 @@
         };
         window.copyToClipboard = copyToClipboard;
 
+        // Compute and render the current user's join position for a post
+        async function updateUserPosition(postId) {
+            try {
+                if (!currentUser) return;
+                const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
+                const partRef = doc(postRef, 'participants', currentUser.uid);
+                const partSnap = await getDoc(partRef);
+                let posText = null;
+                if (partSnap.exists()) {
+                    const d = partSnap.data() || {};
+                    if (typeof d.position === 'number' && d.position > 0) {
+                        posText = `Position NO: ${d.position}`;
+                    }
+                }
+                if (!posText) {
+                    // Fallback: compute by joinedAt ordering
+                    const participantsRef = collection(postRef, 'participants');
+                    const qy = query(participantsRef, orderBy('joinedAt', 'asc'));
+                    const snap = await getDocs(qy);
+                    let pos = null;
+                    snap.forEach((docu, idx) => { if (docu.id === currentUser.uid) pos = idx + 1; });
+                    if (pos) posText = `Position NO: ${pos}`;
+                }
+                const el = document.getElementById(`position-${postId}`);
+                if (el) el.textContent = posText || 'Not found';
+            } catch (e) {
+                const el = document.getElementById(`position-${postId}`);
+                if (el) el.textContent = 'Not found';
+            }
+        }
+
+        // Real-time listen to this user's participant doc and reflect position in UI
+        function attachUserPositionListener(postId) {
+            try {
+                const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
+                const partRef = doc(postRef, 'participants', currentUser.uid);
+                return onSnapshot(partRef, (snap) => {
+                    if (!snap.exists()) return;
+                    const d = snap.data() || {};
+                    const posVal = (typeof d.position === 'number' && d.position > 0) ? d.position : null;
+                    const posEl = document.getElementById(`position-${postId}`);
+                    if (posEl) posEl.textContent = posVal ? `Position NO: ${posVal}` : (posEl.textContent || 'Calculating...');
+                    // Also reflect on the joined button if present
+                    const postElement = document.getElementById(`post-${postId}`);
+                    const joinBtnContainer = postElement?.querySelector('.progress-join-btn')?.parentElement || postElement?.querySelector('.flex-shrink-0');
+                    const joinedBtn = postElement?.querySelector('button[disabled].cursor-not-allowed');
+                    if (joinedBtn && posVal) {
+                        joinedBtn.textContent = `Joined · P: ${posVal}`;
+                    }
+                });
+            } catch (_) { return null; }
+        }
+
         // --- Authentication ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -506,14 +559,24 @@
 
             const participantsRef = collection(db, 'artifacts', appId, 'public', 'data', 'posts', post.id, 'participants');
             const participantsSnapshot = await getDocs(participantsRef);
-            const participantsCount = participantsSnapshot.size;
+            // Slots per participant is based on how many required IDs are needed; default 1
+            const slotsPerParticipant = Array.isArray(contestDetails.requiredIdTypes) && contestDetails.requiredIdTypes.length > 0
+                ? contestDetails.requiredIdTypes.length
+                : 1;
+            // Sum up currently used slots from participants
+            let slotsUsedTotal = 0;
+            participantsSnapshot.forEach(d => {
+                const pdata = d.data() || {};
+                const used = (typeof pdata.slotsUsed === 'number' && pdata.slotsUsed > 0) ? pdata.slotsUsed : 1;
+                slotsUsedTotal += used;
+            });
             
             const participantDoc = await getDoc(doc(participantsRef, currentUser.uid));
             const hasJoined = participantDoc.exists();
 
             postElement.dataset.joined = hasJoined ? 'true' : 'false';
 
-            const isFull = participantsCount >= contestDetails.maxPlayers;
+            const isFull = (Number(contestDetails.maxPlayers || 0) > 0) && (slotsUsedTotal >= Number(contestDetails.maxPlayers || 0));
             
             let statusColorClass = 'border-blue-500';
             if (post.status === 'inactive') statusColorClass = 'border-gray-400';
@@ -598,8 +661,8 @@
                 ? `<span data-field="entryFee">FREE</span>`
                 : `৳<span data-field="entryFee">${entryFeeValue}</span>`;
 
-            const remainingSpots = Math.max((contestDetails.maxPlayers || 0) - participantsCount, 0);
-            const canJoin = (currentUserRole === 'user') && !hasJoined && !isFull;
+            const remainingSpots = Math.max((Number(contestDetails.maxPlayers || 0)) - slotsUsedTotal, 0);
+            const canJoin = (currentUserRole === 'user') && !hasJoined && !isFull && (remainingSpots >= slotsPerParticipant);
             const joinButtonHTML = `
                 <div class="flex-shrink-0">
                     ${canJoin ? `<button class="progress-join-btn px-6 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">Join</button>` : ''}
@@ -655,11 +718,11 @@
                     <div class="flex items-center gap-4">
                         <div class="flex-1 min-w-0">
                             <div class="h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                                <div id="progress-fill-${post.id}" class="h-full bg-blue-500" style="width: ${Math.min(100, Math.max(0, Math.round((participantsCount / (contestDetails.maxPlayers || 1)) * 100)))}%"></div>
+                                <div id="progress-fill-${post.id}" class="h-full bg-blue-500" style="width: ${Math.min(100, Math.max(0, Math.round((slotsUsedTotal / (Number(contestDetails.maxPlayers || 1))) * 100)))}%"></div>
                             </div>
                             <div class="flex justify-between mt-1.5 text-[12px] leading-none text-gray-500 whitespace-nowrap">
                                 <span id="spots-left-${post.id}">Only ${remainingSpots} spots are left</span>
-                                <span id="participants-${post.id}">${participantsCount}/${contestDetails.maxPlayers}</span>
+                                <span id="participants-${post.id}">${slotsUsedTotal}/${contestDetails.maxPlayers}</span>
                             </div>
                         </div>
                         ${joinButtonHTML}
@@ -681,6 +744,10 @@
                     <div class="room-details hidden mt-2 text-sm bg-slate-50 border rounded-lg p-3">
                         ${hasJoined ? `
                         <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">Your Position</span>
+                                <code id="position-${post.id}" class="bg-green-100 text-green-800 px-2 py-0.5 rounded">Calculating...</code>
+                            </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-600">Room ID</span>
                                 <div class="flex items-center">
@@ -767,6 +834,12 @@
             
             if (postElement.querySelector('.submit-proof-btn')) {
                 postElement.querySelector('.submit-proof-btn').onclick = () => openProofModal(post.id);
+            }
+
+            // If user already joined, compute and start listening to their join position
+            if (hasJoined) {
+                try { await updateUserPosition(post.id); } catch (e) { /* ignore */ }
+                attachUserPositionListener(post.id);
             }
 
             const roomBtn = postElement.querySelector('.toggle-room');
@@ -893,7 +966,9 @@
                     const contestDetails = JSON.parse(post.contestDetails);
                     const joinButtonContainer = postElement.querySelector('.progress-join-btn')?.parentElement;
                     if(joinButtonContainer) {
-                        joinButtonContainer.innerHTML = `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>Joined</button>`;
+                        const assignedPos = Number(data?.position);
+                        const joinedLabel = Number.isFinite(assignedPos) && assignedPos > 0 ? `Joined · P: ${assignedPos}` : 'Joined';
+                        joinButtonContainer.innerHTML = `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>${joinedLabel}</button>`;
                     }
 
                     const formBlock = postElement.querySelector(`#join-form-${postId}`);
@@ -910,14 +985,18 @@
                         roomDetailsDiv.innerHTML = `
                             <div class="space-y-2">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-gray-600">Room ID</span>
+                                    <span class="text-gray-600">আপনার পজিশন</span>
+                                    <code id="position-${postId}" class="bg-green-100 text-green-800 px-2 py-0.5 rounded">পজিশন নির্ধারণ হচ্ছে...</code>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">রুম আইডি</span>
                                     <div class="flex items-center">
                                         <code class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${contestDetails.roomId || '—'}</code>
                                         <i onclick="copyToClipboard('${contestDetails.roomId || ''}')" class="fas fa-copy cursor-pointer text-gray-500 ml-2" title="Copy Room ID"></i>
                                     </div>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-gray-600">Password</span>
+                                    <span class="text-gray-600">পাসওয়ার্ড</span>
                                     <div class="flex items-center">
                                         <code class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${contestDetails.roomPass || '—'}</code>
                                         <i onclick="copyToClipboard('${contestDetails.roomPass || ''}')" class="fas fa-copy cursor-pointer text-gray-500 ml-2" title="Copy Password"></i>
@@ -928,6 +1007,15 @@
                         `;
                         const proofBtn = roomDetailsDiv.querySelector('.submit-proof-btn');
                         if (proofBtn) proofBtn.onclick = () => openProofModal(postId);
+                        // Update and display user's join position after a successful join
+                        const assignedPos = Number(data?.position);
+                        if (Number.isFinite(assignedPos) && assignedPos > 0) {
+                            const posEl = document.getElementById(`position-${postId}`);
+                            if (posEl) posEl.textContent = `Position NO: ${assignedPos}`;
+                        } else {
+                            try { await updateUserPosition(postId); } catch (e) { /* ignore */ }
+                        }
+                        attachUserPositionListener(postId);
                     }
                     
                     postElement.dataset.joined = 'true';
@@ -940,15 +1028,17 @@
                         const currentCountText = participantsCountEl.textContent.split('/')[0];
                         const currentCount = parseInt(currentCountText, 10);
                         if (!isNaN(currentCount)) {
-                            const maxPlayers = contestDetails.maxPlayers;
-                            const newCount = Math.min(maxPlayers, currentCount + 1);
+                            const maxPlayers = Number(contestDetails.maxPlayers || 0);
+                            const slotsPerParticipantLocal = Array.isArray(contestDetails.requiredIdTypes) && contestDetails.requiredIdTypes.length > 0 ? contestDetails.requiredIdTypes.length : 1;
+                            const newCount = Math.min(maxPlayers, currentCount + slotsPerParticipantLocal);
                             participantsCountEl.textContent = `${newCount}/${maxPlayers}`;
                             if (spotsLeftEl) {
                                 const left = Math.max(0, maxPlayers - newCount);
                                 spotsLeftEl.textContent = `Only ${left} spots are left`;
                             }
                             if (fillEl) {
-                                const pct = Math.min(100, Math.max(0, Math.round((newCount / (maxPlayers || 1)) * 100)));
+                                const denom = maxPlayers > 0 ? maxPlayers : 1;
+                                const pct = Math.min(100, Math.max(0, Math.round((newCount / denom) * 100)));
                                 fillEl.style.width = pct + '%';
                             }
                         }
@@ -1499,21 +1589,10 @@
             const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
             const participantsRef = collection(postRef, 'participants');
 
-            // ######## MODIFICATION START ########
-            // জয়েন করার সময় অনুযায়ী প্লেয়ারদের সর্ট করার জন্য কোয়েরি তৈরি করা হয়েছে
-            // This query sorts the participants by their joining time (oldest first).
-            // A 'joinedAt' field with a server timestamp must be saved when a user joins.
-            const participantsQuery = query(participantsRef, orderBy("joinedAt", "asc"));
-            // ######## MODIFICATION END ########
-
             try {
-                const [postDoc, participantsSnapshot] = await Promise.all([
+                const [postDoc, participantsSnapshotRaw] = await Promise.all([
                     getDoc(postRef),
-                    // ######## MODIFICATION START ########
-                    // এখন পার্টিসিপেন্টদের তালিকা আনার জন্য সর্টেড কোয়েরিটি ব্যবহার করা হচ্ছে
-                    // Using the sorted query to fetch the list of participants
-                    getDocs(participantsQuery)
-                    // ######## MODIFICATION END ########
+                    getDocs(participantsRef)
                 ]);
 
                 if (!postDoc.exists()) throw new Error("Tournament not found!");
@@ -1522,10 +1601,21 @@
                 const pendingPrizes = postData.pendingPrizes || {};
                 const pendingNotes = postData.pendingNotes || {};
 
+                // Sort by stored 'position' first (asc), fallback to 'joinedAt' (asc)
+                const participantsDocs = participantsSnapshotRaw.docs.slice().sort((a, b) => {
+                    const ad = a.data() || {}; const bd = b.data() || {};
+                    const ap = (typeof ad.position === 'number') ? ad.position : Number.POSITIVE_INFINITY;
+                    const bp = (typeof bd.position === 'number') ? bd.position : Number.POSITIVE_INFINITY;
+                    if (ap !== bp) return ap - bp;
+                    const aj = ad.joinedAt?.toMillis ? ad.joinedAt.toMillis() : 0;
+                    const bj = bd.joinedAt?.toMillis ? bd.joinedAt.toMillis() : 0;
+                    return aj - bj;
+                });
+
                 let playersHTML = '';
-                if (!participantsSnapshot.empty) {
+                if (participantsDocs.length > 0) {
                     playersHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
-                    participantsSnapshot.docs.forEach((doc, index) => {
+                    participantsDocs.forEach((doc, index) => {
                         const player = doc.data();
                         const savedPrize = pendingPrizes[doc.id] || '';
                         const savedNote = pendingNotes[doc.id] || '';
@@ -1547,7 +1637,7 @@
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="flex-1">
                                         <div class="flex items-center gap-3">
-                                            <span class="font-bold text-lg text-slate-400">${index + 1}.</span>
+                                            <span class="font-bold text-sm text-slate-500 px-2 py-0.5 bg-slate-100 rounded">Position NO: ${index + 1}</span>
                                             <p class="font-semibold text-gray-800"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}" data-idvalues='${idValuesString}'>${player.fullName}</span></p>
                                         </div>
                                         <div class="mt-1 pl-8 space-y-1">${idDisplayHTML}</div>
@@ -1621,7 +1711,7 @@
                             gridHTML += `
                                 <div class="border rounded-lg p-3 bg-white shadow-sm flex flex-col">
                                     <div class="flex items-center gap-3">
-                                        <span class="flex-shrink-0 font-bold text-lg text-gray-400 w-8 text-center">${i + 1}.</span>
+                                        <span class="flex-shrink-0 font-bold text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded">Position NO: ${i + 1}</span>
                                         <h3 class="font-semibold text-base text-gray-900 truncate">${name}</h3>
                                     </div>
                                     <div class="pl-11 mt-2 pt-2 border-t border-slate-200 space-y-1">
@@ -1631,7 +1721,7 @@
                             `;
                             
                             const plainTextIds = Object.entries(ids).map(([key, val]) => `- ${val} (${key})`);
-                            plainTextList += `${i + 1}. ${name}\n${plainTextIds.join('\n')}\n\n`;
+                            plainTextList += `Position NO: ${i + 1} - ${name}\n${plainTextIds.join('\n')}\n\n`;
                         });
                         gridHTML += '</div>';
 
