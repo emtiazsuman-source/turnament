@@ -62,11 +62,22 @@
         #posts-container.compact .post-card .gap-4 { gap: 0.5rem !important; }
         /* Reduce spacing between cards in compact mode (override Tailwind's space-y-4) */
         #posts-container.compact > .post-card { margin-top: 0.5rem !important; }
+        /* Style for PC Admin Form */
+        .admin-form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        .admin-form-fieldset {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
     </style>
 </head>
 
 <body class="flex items-center justify-center p-0 sm:p-4">
-    <div id="app-wrapper" class="app-container w-full max-w-sm bg-slate-50 shadow-2xl rounded-none sm:rounded-2xl overflow-hidden flex flex-col">
+    <div id="app-wrapper" class="app-container w-full max-w-sm bg-slate-50 shadow-2xl rounded-none sm:rounded-2xl overflow-hidden flex flex-col transition-all duration-300">
         <div id="loading" class="absolute inset-0 bg-white/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center space-y-4">
             <div class="animate-spin w-12 h-12 border-4 rounded-full border-blue-500 border-t-transparent"></div>
             <p class="text-gray-600 font-medium">লোড হচ্ছে...</p>
@@ -221,15 +232,24 @@
             setTimeout(() => messageBox.classList.add('hidden'), 3000);
         };
 
-        const renderModal = (id, title, content, onClose = () => {}) => {
+        const renderModal = (id, title, content, options = {}) => {
+            const { size = 'lg', onClose = () => {} } = options;
+            let sizeClass = 'max-w-lg'; // default
+            if (size === 'xl') sizeClass = 'max-w-xl';
+            if (size === '3xl') sizeClass = 'max-w-3xl';
+            if (size === '4xl') sizeClass = 'max-w-4xl';
+            if (size === '5xl') sizeClass = 'max-w-5xl';
+            if (size === '7xl') sizeClass = 'max-w-7xl';
+
+
             const modalHTML = `
-                <div id="${id}" class="modal fixed inset-0 z-[100] items-center justify-center bg-black bg-opacity-50">
-                    <div class="modal-content bg-white rounded-xl shadow-lg w-11/12 max-w-lg max-h-[90vh] flex flex-col">
+                <div id="${id}" class="modal fixed inset-0 z-[100] items-center justify-center bg-black bg-opacity-50 p-4">
+                    <div class="modal-content bg-white rounded-xl shadow-lg w-full ${sizeClass} max-h-[90vh] flex flex-col">
                         <header class="flex justify-between items-center p-4 border-b">
                             <h2 class="text-xl font-semibold text-gray-800">${title}</h2>
                             <button class="close-button text-gray-400 hover:text-gray-700 text-2xl font-bold">&times;</button>
                         </header>
-                        <div class="p-5 overflow-y-auto no-scrollbar">${content}</div>
+                        <div class="p-5 overflow-y-auto no-scrollbar bg-slate-50">${content}</div>
                     </div>
                 </div>
             `;
@@ -302,14 +322,27 @@
                         } else {
                             roleSwitchEl.classList.add('hidden');
                         }
-                        // Admin-specific visibility only on admin route
+                        
                         const isAdminRoute = window.location.pathname === '/admin-t';
+                        const appWrapper = document.getElementById('app-wrapper');
+
                         if (isAdminUser && isAdminRoute) {
                             adminPostSectionEl.classList.remove('hidden');
                             renderAdminControls();
+                            // Widen layout for admin on PC
+                            if (appWrapper) {
+                                appWrapper.classList.remove('max-w-sm');
+                                appWrapper.classList.add('sm:max-w-5xl');
+                            }
                         } else {
                             adminPostSectionEl.classList.add('hidden');
+                             // Revert to narrow layout for non-admins or other pages
+                            if (appWrapper) {
+                                appWrapper.classList.add('max-w-sm');
+                                appWrapper.classList.remove('sm:max-w-5xl');
+                            }
                         }
+                        
                         // If user opened the dedicated tournament admin route, enforce access
                         if (window.location.pathname === '/admin-t') {
                             if (isAdminUser) {
@@ -779,9 +812,7 @@
                 ? `<p class="text-xs text-center text-red-600">আপনার ওয়ালেট থেকে ৳${fee} কেটে নেওয়া হবে।</p>` 
                 : '';
 
-            // ✅ **পরিবর্তন #১:** একটির বদলে একাধিক আইডি ইনপুট বক্স তৈরি করা হচ্ছে
             let idInputsHTML = '';
-            // backward compatibility এর জন্য পুরনো requiredIdType স্ট্রিং এবং নতুন requiredIdTypes অ্যারে উভয়ই সাপোর্ট করবে
             const requiredIdTypes = Array.isArray(contestDetails.requiredIdTypes) && contestDetails.requiredIdTypes.length > 0 
                 ? contestDetails.requiredIdTypes 
                 : [contestDetails.requiredIdType || 'Game ID'];
@@ -813,7 +844,6 @@
             postElement.dataset.confirmMode = 'true';
 
             const confirmHandler = () => {
-                // ✅ **পরিবর্তন #২:** সব আইডি ইনপুট থেকে ডেটা সংগ্রহ করা হচ্ছে
                 const idInputs = document.querySelectorAll(`#join-form-${post.id} input[data-id-type]`);
                 const idValues = {};
                 let allValid = true;
@@ -843,7 +873,6 @@
         };
 
         const handleJoinContest = async (post, idValues) => {
-            // ✅ **পরিবর্তন #৩:** idValue এর পরিবর্তে idValues অবজেক্ট পাঠানো হচ্ছে
             if (!idValues || Object.keys(idValues).length === 0) return showMessage('অনুগ্রহ করে প্রয়োজনীয় আইডি লিখুন।', 'error');
             const postId = post.id;
             try {
@@ -953,7 +982,7 @@
                     <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 rounded-lg hover:bg-indigo-700" id="proof-submit-btn">সাবমিট</button>
                 </form>
             `;
-            renderModal('submitProofModal', 'প্রুফ জমা দিন', content);
+            renderModal('submitProofModal', 'প্রুফ জমা দিন', content, { size: 'lg' });
 
             try {
                 const partRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId, 'participants', currentUser.uid);
@@ -1087,9 +1116,7 @@
                     </div>`;
             });
 
-            // ✅ **পরিবর্তন #৪:** একাধিক Required ID Type এর জন্য HTML তৈরি করা
             let idFieldsHTML = '';
-            // backward compatibility: পুরনো `requiredIdType` বা নতুন `requiredIdTypes` উভয়ই চেক করা হচ্ছে
             const idTypes = Array.isArray(d.requiredIdTypes) && d.requiredIdTypes.length > 0
                 ? d.requiredIdTypes
                 : (d.requiredIdType ? [d.requiredIdType] : ['']);
@@ -1106,102 +1133,109 @@
 
 
             return `
-                <form id="${formId}" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">টুর্নামেন্টের নাম <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestName" placeholder="টুর্নামেন্টের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.contestName || ''}" required>
+                <form id="${formId}" class="space-y-6">
+                    <div class="admin-form-grid">
+                        
+                        <div class="admin-form-fieldset border p-4 rounded-lg">
+                            <h3 class="font-semibold text-lg text-gray-700 border-b pb-2">মৌলিক তথ্য</h3>
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">টুর্নামেন্টের নাম <span class="text-red-500">*</span></label>
+                                <input type="text" name="contestName" placeholder="টুর্নামেন্টের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.contestName || ''}" required>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">শুরুর সময় (Start Time) <span class="text-red-500">*</span></label>
+                                <input type="datetime-local" name="startTime" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.startTime || ''}">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">ENTRY FEE (৳) <span class="text-red-500">*</span></label>
+                                    <input type="number" name="entryFee" placeholder="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.entryFee || ''}">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">Max Players <span class="text-red-500">*</span></label>
+                                    <input type="number" name="maxPlayers" placeholder="50" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.maxPlayers || ''}">
+                                </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস (Status) <span class="text-red-500">*</span></label>
+                                <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="active" ${d.status === 'active' ? 'selected' : ''}>Active</option>
+                                    <option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                                    <option value="complete" ${d.status === 'complete' ? 'selected' : ''}>Complete</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">Match No (ঐচ্ছিক)</label>
+                                <input type="number" name="matchNo" placeholder="1" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.matchNo || ''}">
+                            </div>
                         </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">Match No</label>
-                            <input type="number" name="matchNo" placeholder="1" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.matchNo || ''}">
+
+                        <div class="admin-form-fieldset border p-4 rounded-lg">
+                            <h3 class="font-semibold text-lg text-gray-700 border-b pb-2">গেমের বিবরণ</h3>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">গেমের নাম</label>
+                                    <input type="text" name="gameName" placeholder="যেমন: Free Fire" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameName || ''}">
+                                </div>
+                                 <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">ENTRY TYPE <span class="text-red-500">*</span></label>
+                                    <input type="text" name="contestType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: 1v1, 2v2" value="${d.contestType || ''}">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">MAP</label>
+                                    <input type="text" name="map" placeholder="যেমন: Bermuda" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.map || ''}">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">VERSION</label>
+                                    <input type="text" name="version" placeholder="যেমন: MOBILE" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.version || ''}">
+                                </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">গেম আইকন লিংক (URL)</label>
+                                <input type="text" name="gameIconUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameIconUrl || ''}">
+                            </div>
+                            <h4 class="text-md font-semibold text-gray-600 pt-2 border-t">Room Details</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="text" name="roomId" placeholder="রুম আইডি" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomId || ''}">
+                                <input type="text" name="roomPass" placeholder="রুম পাসওয়ার্ড" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomPass || ''}">
+                            </div>
+                             <div class="flex flex-col">
+                                <label class="text-xs text-gray-600 mb-1">Live Stream Link (ঐচ্ছিক)</label>
+                                <input type="url" name="liveLink" placeholder="https://facebook.com/live/..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.liveLink || ''}">
+                            </div>
                         </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">গেমের নাম (Headline)</label>
-                            <input type="text" name="gameName" placeholder="গেমের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameName || ''}">
+
+                        <div class="admin-form-fieldset border p-4 rounded-lg">
+                            <h3 class="font-semibold text-lg text-gray-700 border-b pb-2">পুরস্কার ও অংশগ্রহণকারী</h3>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">WIN PRIZE (ম্যানুয়াল)</label>
+                                    <input type="text" name="winPrize" placeholder="যেমন: 500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.winPrize || ''}">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">PER KILL (৳)</label>
+                                    <input type="number" name="perKill" placeholder="যেমন: 5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.perKill || ''}">
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-2">
+                                <h4 class="text-md font-semibold text-gray-600">পুরস্কারের তালিকা</h4>
+                                <div id="prize-list-container" class="space-y-2">${prizeFieldsHTML}</div>
+                                <button type="button" id="add-prize-btn" class="text-sm text-blue-600 hover:underline font-semibold self-start">+ আরও পুরস্কার যোগ করুন</button>
+                            </div>
+                             <div class="flex flex-col space-y-2 pt-2 border-t">
+                                <h4 class="text-md font-semibold text-gray-600">প্রয়োজনীয় আইডি</h4>
+                                <div id="required-id-list-container" class="space-y-2">${idFieldsHTML}</div>
+                                <button type="button" id="add-id-type-btn" class="text-sm text-blue-600 hover:underline font-semibold self-start">+ আরও আইডি যোগ করুন</button>
+                            </div>
                         </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">গেম আইকন লিংক (Icon Link)</label>
-                            <input type="text" name="gameIconUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.gameIconUrl || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">WIN PRIZE (ম্যানুয়াল)</label>
-                            <input type="text" name="winPrize" placeholder="যেমন: 500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.winPrize || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">ENTRY FEE (এন্ট্রি ফি) <span class="text-red-500">*</span></label>
-                            <input type="number" name="entryFee" placeholder="এন্ট্রি ফি (৳)" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.entryFee || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">সর্বোচ্চ প্লেয়ার (Max Players) <span class="text-red-500">*</span></label>
-                            <input type="number" name="maxPlayers" placeholder="সর্বোচ্চ প্লেয়ার" required max="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.maxPlayers || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">PER KILL (পার কিল) (৳)</label>
-                            <input type="number" name="perKill" placeholder="যেমন: 5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.perKill || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">MAP (ম্যাপ)</label>
-                            <input type="text" name="map" placeholder="যেমন: Bermuda" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.map || ''}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">VERSION (ভার্সন)</label>
-                            <input type="text" name="version" placeholder="যেমন: MOBILE" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.version || ''}">
-                        </div>
-                         <div class="flex flex-col">
-                            <label class="text-xs text-gray-600 mb-1">ENTRY TYPE (ধরণ) <span class="text-red-500">*</span></label>
-                            <input type="text" name="contestType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="যেমন: 1v1, 2v2" value="${d.contestType || ''}">
-                        </div>
-                        <div class="flex flex-col col-span-2">
-                            <label class="text-xs text-gray-600 mb-1">শুরুর সময় (Start Time) <span class="text-red-500">*</span></label>
-                            <input type="datetime-local" name="startTime" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.startTime || ''}">
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-1">প্রয়োজনীয় আইডি (Required IDs)</h4>
-                        <div id="required-id-list-container" class="space-y-2">${idFieldsHTML}</div>
-                        <button type="button" id="add-id-type-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও আইডি যোগ করুন</button>
                     </div>
 
-                    <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-1">Room Details</h4>
-                         <div class="grid grid-cols-2 gap-3">
-                            <input type="text" name="roomId" placeholder="রুম আইডি" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomId || ''}">
-                            <input type="text" name="roomPass" placeholder="রুম পাসওয়ার্ড" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.roomPass || ''}">
+                    <div class="col-span-1 md:col-span-3 pt-4 border-t">
+                         <div class="flex items-center space-x-4">
+                            <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">${submitButtonText}</button>
+                            <button type="button" id="save-draft-btn" class="w-1/2 bg-gray-500 text-white font-semibold py-2 rounded-lg hover:bg-gray-600 transition">ড্রাফট সেভ</button>
+                            <button type="button" id="load-draft-btn" class="w-1/2 bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition">ড্রাফট লোড</button>
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-1">Live Stream Link (ঐচ্ছিক)</h4>
-                        <input type="url" name="liveLink" placeholder="https://facebook.com/live/..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.liveLink || ''}">
-                    </div>
-
-                    <div class="mt-4">
-                         <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস (Status) <span class="text-red-500">*</span></label>
-                         <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                            <option value="active" ${d.status === 'active' ? 'selected' : ''}>Active</option>
-                            <option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>Inactive</option>
-                            <option value="complete" ${d.status === 'complete' ? 'selected' : ''}>Complete</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <h4 class="text-md font-semibold text-gray-600 mb-1">Total Prize Details (পুরস্কারের তালিকা)</h4>
-                        <div id="prize-list-container" class="space-y-2">${prizeFieldsHTML}</div>
-                        <button type="button" id="add-prize-btn" class="mt-2 text-sm text-blue-600 hover:underline font-semibold">+ আরও পুরস্কার যোগ করুন</button>
-                    </div>
-
-                    <button type="submit" class="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition">${submitButtonText}</button>
-                    
-                    <div class="flex items-center space-x-2 mt-2">
-                        <button type="button" id="save-draft-btn" class="w-full bg-gray-500 text-white font-semibold py-2 rounded-lg hover:bg-gray-600 transition">ড্রাফট সেভ করুন</button>
-                        <button type="button" id="load-draft-btn" class="w-full bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition">ড্রাফট লোড করুন</button>
-                    </div>
-
-                    <div class="mt-6">
-                        <h4 class="text-md font-bold text-gray-800 mb-2">Live Preview</h4>
-                        <div id="live-preview-card" class="space-y-2"></div>
                     </div>
                 </form>
             `;
@@ -1209,98 +1243,16 @@
 
         const openCreatePostModal = () => {
             const formHTML = generateContestFormHTML({}, 'পোস্ট করুন', 'contest-post-form');
-            renderModal('createPostModal', 'নতুন টুর্নামেন্ট তৈরি করুন', formHTML);
+            renderModal('createPostModal', 'নতুন টুর্নামেন্ট তৈরি করুন', formHTML, { size: '4xl' });
 
             document.getElementById('contest-post-form').onsubmit = handleContestPost;
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#createPostModal');
-            document.querySelectorAll('#createPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.closest('.flex').remove());
-            // ✅ **পরিবর্তন #৬:** নতুন আইডি যোগ এবং মোছার জন্য ইভেন্ট হ্যান্ডলার
+            document.querySelectorAll('#createPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.closest('div').remove());
             document.getElementById('add-id-type-btn').onclick = () => addIdTypeField('', '#createPostModal');
-            document.querySelectorAll('#createPostModal .remove-id-type-btn').forEach(btn => btn.onclick = (e) => e.target.closest('.flex').remove());
+            document.querySelectorAll('#createPostModal .remove-id-type-btn').forEach(btn => btn.onclick = (e) => e.target.closest('div').remove());
             
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#createPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#createPostModal');
-            
-            setupPreviewListeners('#createPostModal');
-            renderPreviewFromForm('#createPostModal');
-        };
-
-        const renderPreviewFromForm = (modalSelector) => {
-            const form = document.querySelector(`${modalSelector} form`);
-            if (!form) return;
-            const get = (name, def='') => (form.elements[name]?.value || def);
-            const start = get('startTime');
-            const dateText = start ? new Date(start).toLocaleString('en-US', { year:'numeric', month:'2-digit', day:'2-digit', hour:'numeric', minute:'2-digit', hour12: true }).replace(',', ' at') : '';
-            const manualWinPrize = (form.elements['winPrize']?.value || '').toString().trim();
-            const perKill = get('perKill');
-            const perKillText = perKill ? `৳${perKill}` : '—';
-            const maxPlayers = parseInt(get('maxPlayers','0'), 10) || 0;
-            const liveLink = get('liveLink');
-            const preview = document.querySelector(`${modalSelector} #live-preview-card`);
-            if (!preview) return;
-            preview.innerHTML = `
-                <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200">
-                    <div class="flex items-start justify-between w-full">
-                        <div class="min-w-0">
-                            <p class="text-base font-bold text-gray-900">${get('contestName','Tournament')}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">${dateText}</p>
-                            <span class="text-sm font-medium text-gray-500">${get('gameName','')}</span>
-                        </div>
-                        <div class="flex flex-col items-end gap-2">
-                            <span class="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">#PREV</span>
-                            <span class="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">0/${maxPlayers} জন</span>
-                        </div>
-                    </div>
-                    <div class="mt-3 grid grid-cols-3 gap-y-4">
-                         <div>
-                            <p class="text-[10px] text-gray-500 uppercase">WIN PRIZE</p>
-                            <p class="font-bold text-gray-800">৳${manualWinPrize || '0'}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">ENTRY TYPE</p>
-                            <p class="font-bold text-gray-800">${get('contestType','')}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">ENTRY FEE</p>
-                            <p class="font-bold text-gray-800">৳${get('entryFee','0')}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">PER KILL</p>
-                            <p class="font-bold text-gray-800">${perKillText}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">MAP</p>
-                            <p class="font-bold text-gray-800">${get('map','')}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">VERSION</p>
-                            <p class="font-bold text-gray-800">${get('version','MOBILE')}</p>
-                        </div>
-                    </div>
-                    <div class="mt-3 rounded-lg bg-green-600 p-2 flex items-center ${liveLink ? 'justify-between' : 'justify-center'} text-white text-sm">
-                        <div class="flex items-center">
-                            <i class="far fa-clock mr-2"></i>
-                            <span class="font-semibold">STARTS IN -</span>
-                            <span class="font-bold ml-1">...</span>
-                        </div>
-                        ${liveLink ? `
-                        <span class="bg-white/20 text-white font-bold py-1 px-3 rounded-full flex items-center gap-1.5 text-xs">
-                            <i class="fas fa-video"></i>
-                            <span>LIVE</span>
-                        </span>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        };
-
-        const setupPreviewListeners = (modalSelector) => {
-            const form = document.querySelector(`${modalSelector} form`);
-            if (!form) return;
-            form.querySelectorAll('input, select, textarea').forEach(el => {
-                el.addEventListener('input', () => renderPreviewFromForm(modalSelector));
-                el.addEventListener('change', () => renderPreviewFromForm(modalSelector));
-            });
         };
 
         const updatePostFieldInline = async (postId, key, rawVal) => {
@@ -1339,16 +1291,10 @@
                 <button type="button" class="remove-prize-btn ${index === 0 ? 'hidden' : ''} bg-red-500 text-white w-8 h-8 rounded-full flex-shrink-0">&times;</button>
             `;
             const removeBtn = prizeField.querySelector('.remove-prize-btn');
-            removeBtn.onclick = () => { prizeField.remove(); renderPreviewFromForm(modalSelector); };
+            removeBtn.onclick = () => { prizeField.remove(); };
             container.appendChild(prizeField);
-            const amountInput = prizeField.querySelector(`input[name="prize_amount_${index}"]`);
-            const posInput = prizeField.querySelector(`input[name="prize_position_${index}"]`);
-            amountInput?.addEventListener('input', () => renderPreviewFromForm(modalSelector));
-            posInput?.addEventListener('input', () => renderPreviewFromForm(modalSelector));
-            renderPreviewFromForm(modalSelector);
         };
         
-        // ✅ **পরিবর্তন #৭:** নতুন Required ID Type ফিল্ড যোগ করার জন্য ফাংশন
         const addIdTypeField = (type = '', modalSelector) => {
             const container = document.querySelector(`${modalSelector} #required-id-list-container`);
             if (!container) return;
@@ -1370,14 +1316,14 @@
             const formData = new FormData(form);
             const draftData = {};
             const prizes = [];
-            const requiredIdTypes = []; // ✅ নতুন অ্যারে
+            const requiredIdTypes = [];
 
             for (let [key, value] of formData.entries()) {
                 if (key.startsWith('prize_position_')) {
                     const index = key.split('_')[2];
                     const amount = formData.get(`prize_amount_${index}`);
                     prizes.push({ position: value, amount: amount });
-                } else if (key.startsWith('requiredIdType_')) { // ✅ আইডি টাইপ সংগ্রহ করা
+                } else if (key.startsWith('requiredIdType_')) {
                      if(value.trim()) requiredIdTypes.push(value.trim());
                 }
                 else {
@@ -1385,7 +1331,7 @@
                 }
             }
             draftData.prizes = prizes;
-            draftData.requiredIdTypes = requiredIdTypes; // ✅ ড্রাফটে সেভ করা
+            draftData.requiredIdTypes = requiredIdTypes;
 
             try {
                 const nameDefault = draftData.contestName ? `${draftData.contestName}` : 'Untitled Draft';
@@ -1432,7 +1378,7 @@
                     });
                     listHTML += '</div>';
                 }
-                renderModal('draftsModal', 'ড্রাফটসমূহ', `<div class="space-y-3">${listHTML}</div>`, () => {});
+                renderModal('draftsModal', 'ড্রাফটসমূহ', listHTML, { size: 'lg' });
 
                 document.querySelectorAll('#draftsModal .load-draft-btn').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
@@ -1450,7 +1396,7 @@
                                 form.elements[key].value = data[key];
                             }
                         }
-                        // ✅ পুরস্কার এবং আইডি টাইপ লোড করা
+
                         const prizeContainer = form.querySelector('#prize-list-container');
                         if (prizeContainer) {
                             prizeContainer.innerHTML = '';
@@ -1466,13 +1412,12 @@
                              if (Array.isArray(data.requiredIdTypes) && data.requiredIdTypes.length > 0) {
                                 data.requiredIdTypes.forEach(type => addIdTypeField(type, modalSelector));
                             } else {
-                                addIdTypeField(data.requiredIdType || '', modalSelector); // backward compatibility
+                                addIdTypeField(data.requiredIdType || '', modalSelector);
                             }
                         }
                         
                         document.querySelector('#draftsModal .close-button')?.click();
                         showMessage('ড্রাফট লোড হয়েছে।', 'success');
-                        renderPreviewFromForm(modalSelector);
                     });
                 });
 
@@ -1502,7 +1447,7 @@
             const formData = new FormData(e.target);
             const contestDetails = {};
             const prizes = [];
-            const requiredIdTypes = []; // ✅ নতুন অ্যারে
+            const requiredIdTypes = [];
             let postStatus = 'active';
             let startTime = '';
             let matchNo = undefined;
@@ -1512,7 +1457,7 @@
                     const index = key.split('_')[2];
                     const amount = formData.get(`prize_amount_${index}`);
                     prizes.push({ position: value, amount: amount });
-                } else if (key.startsWith('requiredIdType_')) { // ✅ আইডি টাইপ সংগ্রহ করা
+                } else if (key.startsWith('requiredIdType_')) {
                      if(value.trim()) requiredIdTypes.push(value.trim());
                 }
                 else if (key === 'status') {
@@ -1528,7 +1473,7 @@
                 }
             }
             contestDetails.prizes = prizes;
-            contestDetails.requiredIdTypes = requiredIdTypes; // ✅ ডেটাতে সেভ করা
+            contestDetails.requiredIdTypes = requiredIdTypes;
 
             loadingEl.classList.remove('hidden');
             try {
@@ -1554,10 +1499,21 @@
             const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
             const participantsRef = collection(postRef, 'participants');
 
+            // ######## MODIFICATION START ########
+            // জয়েন করার সময় অনুযায়ী প্লেয়ারদের সর্ট করার জন্য কোয়েরি তৈরি করা হয়েছে
+            // This query sorts the participants by their joining time (oldest first).
+            // A 'joinedAt' field with a server timestamp must be saved when a user joins.
+            const participantsQuery = query(participantsRef, orderBy("joinedAt", "asc"));
+            // ######## MODIFICATION END ########
+
             try {
                 const [postDoc, participantsSnapshot] = await Promise.all([
                     getDoc(postRef),
-                    getDocs(participantsRef)
+                    // ######## MODIFICATION START ########
+                    // এখন পার্টিসিপেন্টদের তালিকা আনার জন্য সর্টেড কোয়েরিটি ব্যবহার করা হচ্ছে
+                    // Using the sorted query to fetch the list of participants
+                    getDocs(participantsQuery)
+                    // ######## MODIFICATION END ########
                 ]);
 
                 if (!postDoc.exists()) throw new Error("Tournament not found!");
@@ -1568,48 +1524,52 @@
 
                 let playersHTML = '';
                 if (!participantsSnapshot.empty) {
-                    playersHTML = '<div class="space-y-3">';
-                    participantsSnapshot.docs.forEach(doc => {
+                    playersHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+                    participantsSnapshot.docs.forEach((doc, index) => {
                         const player = doc.data();
                         const savedPrize = pendingPrizes[doc.id] || '';
                         const savedNote = pendingNotes[doc.id] || '';
                         const hasProof = !!(player?.note) || !!(player?.screenshotUrl);
                         
-                        // ✅ প্লেয়ারের ഒന്നിലധികം ID সুন্দরভাবে প্রদর্শন করা
+                        const idValuesString = JSON.stringify(player.idValues || {});
+                        
                         let idDisplayHTML = '';
                         if (player.idValues && typeof player.idValues === 'object') {
                             idDisplayHTML = Object.entries(player.idValues).map(([key, value]) => 
-                                `<p class="text-xs text-gray-500">${key}: ${value}</p>`
+                                `<p class="text-sm font-semibold text-gray-700 font-mono break-all">${value}</p>`
                             ).join('');
-                        } else if (player.idValue) { // পুরনো ডেটার জন্য
-                             idDisplayHTML = `<p class="text-xs text-gray-500">ID: ${player.idValue}</p>`;
+                        } else if (player.idValue) {
+                             idDisplayHTML = `<p class="text-sm font-semibold text-gray-700 font-mono break-all">${player.idValue}</p>`;
                         }
 
                         playersHTML += `
-                            <div class="bg-slate-100 p-3 rounded-lg flex flex-col gap-2">
+                            <div class="bg-white border border-slate-200 p-3 rounded-lg flex flex-col gap-2 shadow-sm">
                                 <div class="flex items-start justify-between gap-2">
-                                    <div>
-                                        <p class="font-semibold"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}" data-idvalue="${player.idValue || ''}">${player.fullName}</span></p>
-                                        ${idDisplayHTML}
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-3">
+                                            <span class="font-bold text-lg text-slate-400">${index + 1}.</span>
+                                            <p class="font-semibold text-gray-800"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}" data-idvalues='${idValuesString}'>${player.fullName}</span></p>
+                                        </div>
+                                        <div class="mt-1 pl-8 space-y-1">${idDisplayHTML}</div>
                                     </div>
                                     <div class="flex-shrink-0">
                                         <button 
-                                            class="view-proof-btn ${hasProof ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'} text-xs font-semibold py-1.5 px-2.5 rounded"
+                                            class="view-proof-btn ${hasProof ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'} text-xs font-semibold py-1.5 px-2.5 rounded-md"
                                             ${hasProof ? '' : 'disabled title="কোনো প্রুফ নেই"'}
                                             data-fullname="${player.fullName || ''}"
-                                            data-idvalue="${player.idValue || ''}"
+                                            data-idvalues='${idValuesString}'
                                             data-note="${(player.note || '').toString().replace(/`/g,'\`').replace(/\"/g,'&quot;')}"
                                             data-screenshoturl="${player.screenshotUrl || ''}">
-                                            প্রুফ দেখুন
+                                            প্রুফ
                                         </button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-5 gap-2 items-center">
+                                <div class="grid grid-cols-5 gap-2 items-center pt-2 border-t border-slate-200">
                                     <div class="col-span-2 flex items-center space-x-2">
                                         <span class="font-semibold text-gray-600">৳</span>
                                         <input type="number" min="0" value="${savedPrize}" data-userid="${doc.id}" 
                                                class="prize-input w-full px-2 py-1 border border-gray-300 rounded-md text-right" 
-                                               placeholder="_ _ _">
+                                               placeholder="Prize">
                                     </div>
                                     <div class="col-span-3">
                                         <input type="text" maxlength="120" value="${(savedNote || '').toString().replace(/`/g,'\`').replace(/\"/g,'&quot;')}" data-userid="${doc.id}"
@@ -1623,53 +1583,72 @@
 
                 const modalContent = `
                     <div class="space-y-3">
-                        ${playersHTML}
+                        ${playersHTML || '<p class="text-center text-gray-500 p-8">এখনো কোনো প্লেয়ার জয়েন করেনি।</p>'}
                     </div>
                     <form id="prize-distribution-form" data-post-id="${postId}">
-                        <div class="flex items-center space-x-2 mt-4">
-                            <button type="button" id="save-progress-btn" class="w-full bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition">Save Progress</button>
-                            <button type="button" id="confirm-distribute-btn" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition">Confirm & Distribute</button>
+                        <div class="flex items-center space-x-3 mt-6 pt-4 border-t">
+                            <button type="button" id="save-progress-btn" class="flex-1 bg-blue-500 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-600 transition">Save Progress</button>
+                            <button type="button" id="confirm-distribute-btn" class="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-lg hover:bg-green-700 transition">Confirm & Distribute</button>
                         </div>
                     </form>
                 `;
-                renderModal('managePrizesModal', 'পুরস্কার ম্যানেজ করুন', modalContent);
+                renderModal('managePrizesModal', 'পুরস্কার ম্যানেজ করুন', modalContent, { size: '3xl' });
 
-                // Inject "User+ID" button in the modal header to add serial numbers and IDs next to names
                 const prizesHeaderEl = document.querySelector('#managePrizesModal .modal-content header');
                 if (prizesHeaderEl) {
                     const userIdBtn = document.createElement('button');
                     userIdBtn.id = 'apply-user-id-btn';
-                    userIdBtn.className = 'ml-auto mr-2 text-xs px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700';
-                    userIdBtn.textContent = 'User+ID';
+                    userIdBtn.className = 'ml-auto mr-4 text-sm px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-semibold flex items-center gap-2';
+                    userIdBtn.innerHTML = '<i class="fas fa-list-ol"></i> User + ID List';
                     const closeBtnEl = prizesHeaderEl.querySelector('.close-button');
                     prizesHeaderEl.insertBefore(userIdBtn, closeBtnEl || null);
 
                     userIdBtn.addEventListener('click', () => {
                         const nameLinks = Array.from(document.querySelectorAll('#managePrizesModal .user-name-link'));
                         if (!nameLinks.length) return;
-                        const lines = nameLinks.map((el, i) => {
-                            const name = (el.dataset.original || el.textContent || '').toString().trim() || 'Unknown';
-                            const idVal = (el.dataset.idvalue || '').toString().trim();
-                            return `${i + 1}. ${name}${idVal ? ` (${idVal})` : ''}`;
-                        });
-                        const listText = lines.join('\n');
-                        const body = `
-                            <div class="space-y-3">
-                                <p class="text-sm text-gray-600">নীচে সকল প্লেয়ারের নাম ও FF ID তালিকা দেয়া হলো। কপি করে আপনার টুর্নামেন্ট ম্যানেজে ব্যবহার করুন।</p>
-                                <div class="space-y-2">
-                                    <textarea readonly class="w-full h-72 p-3 border rounded-md bg-slate-50 text-sm font-mono">${listText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
-                                    <div class="flex gap-2">
-                                        <button id="copy-userid-list" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">কপি করুন</button>
-                                        <button id="close-userid-list" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded text-sm">বন্ধ করুন</button>
+
+                        let gridHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">';
+                        let plainTextList = '';
+
+                        nameLinks.forEach((el, i) => {
+                            const name = (el.textContent || '').trim() || 'Unknown';
+                            const ids = JSON.parse(el.dataset.idvalues || '{}');
+                            
+                            const idValuesHTML = Object.entries(ids)
+                                .map(([key, val]) => `<p class="font-mono text-blue-700 text-sm break-all">${val}</p>`)
+                                .join('');
+
+                            gridHTML += `
+                                <div class="border rounded-lg p-3 bg-white shadow-sm flex flex-col">
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex-shrink-0 font-bold text-lg text-gray-400 w-8 text-center">${i + 1}.</span>
+                                        <h3 class="font-semibold text-base text-gray-900 truncate">${name}</h3>
+                                    </div>
+                                    <div class="pl-11 mt-2 pt-2 border-t border-slate-200 space-y-1">
+                                        ${idValuesHTML || '<p class="text-xs text-gray-400">No info.</p>'}
                                     </div>
                                 </div>
+                            `;
+                            
+                            const plainTextIds = Object.entries(ids).map(([key, val]) => `- ${val} (${key})`);
+                            plainTextList += `${i + 1}. ${name}\n${plainTextIds.join('\n')}\n\n`;
+                        });
+                        gridHTML += '</div>';
+
+                        const body = `
+                            <div class="space-y-4">
+                                <div>${gridHTML}</div>
+                                <div class="flex gap-2 pt-4 border-t">
+                                    <button id="copy-userid-list" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+                                        <i class="fas fa-copy"></i> তালিকা কপি করুন
+                                    </button>
+                                </div>
                             </div>`;
-                        renderModal('userIdListModal', 'User + ID List', body);
+                        renderModal('userIdListModal', 'খেলোয়াড় এবং আইডি তালিকা', body, { size: '4xl' });
+                        
                         setTimeout(() => {
                             const copyBtn = document.getElementById('copy-userid-list');
-                            const closeBtn = document.getElementById('close-userid-list');
-                            if (copyBtn) copyBtn.onclick = () => copyToClipboard(listText);
-                            if (closeBtn) closeBtn.onclick = () => document.querySelector('#userIdListModal .close-button')?.click();
+                            if (copyBtn) copyBtn.onclick = () => copyToClipboard(plainTextList.trim());
                         }, 0);
                     });
                 }
@@ -1681,10 +1660,11 @@
                     btn.addEventListener('click', (e) => {
                         const el = e.currentTarget;
                         const name = el.getAttribute('data-fullname') || 'Unknown';
-                        const idValue = el.getAttribute('data-idvalue') || '';
+                        const idValues = JSON.parse(el.dataset.idvalues || '{}');
+                        const idText = Object.entries(idValues).map(([k,v]) => `${k}: ${v}`).join(' | ');
                         const note = el.getAttribute('data-note') || '';
                         const url = el.getAttribute('data-screenshoturl') || '';
-                        openPlayerProofModal(name, idValue, note, url);
+                        openPlayerProofModal(name, idText, note, url);
                     });
                 });
 
@@ -1759,7 +1739,7 @@
                 participantsData[doc.id] = doc.data();
             });
             
-            const detailedWinners = winners.map(winner => ({ ...winner, ...(participantsData[winner.userId] || { fullName: 'Unknown User', idValue: 'N/A' }) }));
+            const detailedWinners = winners.map(winner => ({ ...winner, ...(participantsData[winner.userId] || { fullName: 'Unknown User', idValues: {} }) }));
             detailedWinners.sort((a, b) => b.amount - a.amount);
             
             let previewHTML = '';
@@ -1767,13 +1747,14 @@
             detailedWinners.forEach((winner, idx) => {
                 const pos = idx + 1;
                 const badgeClass = medalColors[idx] || 'bg-blue-100 text-blue-800';
+                const idText = Object.entries(winner.idValues).map(([k,v]) => v).join(', ');
                 previewHTML += `
                     <div class="flex items-start justify-between gap-3 py-3 px-3 rounded-lg bg-white border">
                         <div class="flex items-start gap-3">
                             <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded ${badgeClass}">${pos}</span>
                             <div>
                                 <div class="font-semibold text-gray-900"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${winner.userId}">${winner.fullName}</span></div>
-                                <div class="text-xs text-gray-500">${winner.idValue}</div>
+                                <div class="text-xs text-gray-500">${idText}</div>
                                 ${winner.adminNote ? `<div class="mt-1 text-xs text-gray-700"><span class="font-medium">নোট:</span> ${winner.adminNote.replace(/</g,'&lt;')}</div>` : ''}
                             </div>
                         </div>
@@ -1797,7 +1778,7 @@
                     <button type="submit" class="w-full mt-4 bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 transition">Confirm & Send Money</button>
                 </form>
             `;
-            renderModal('adminAuthModal', 'অ্যাডমিন ভেরিফিকেশন', modalContent);
+            renderModal('adminAuthModal', 'অ্যাডমিন ভেরিফিকেশন', modalContent, { size: 'lg' });
             document.getElementById('adminAuthModal').querySelector('.close-button').onclick = () => {
                 document.getElementById('adminAuthModal').classList.remove('show');
                 setTimeout(() => { modalContainerEl.innerHTML = ''; viewPlayersModal(postId); }, 300);
@@ -1848,34 +1829,26 @@
             const postData = postDoc.data();
             const contestDetails = JSON.parse(postData.contestDetails);
             
-            // Prepare data for the form generator
             const initialData = { ...contestDetails };
             initialData.status = postData.status;
             initialData.matchNo = postData.matchNo;
             if (postData.startTime) {
-                // Convert Firestore Timestamp to a format suitable for datetime-local input
                 const date = postData.startTime.toDate();
-                // Adjust for timezone offset before converting to ISO string
                 const timezoneOffset = date.getTimezoneOffset() * 60000;
                 const localISOTime = new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
                 initialData.startTime = localISOTime;
             }
 
             const formHTML = generateContestFormHTML(initialData, 'আপডেট করুন', 'edit-post-form');
-            renderModal('editPostModal', 'টুর্নামেন্ট এডিট করুন', formHTML);
+            renderModal('editPostModal', 'টুর্নামেন্ট এডিট করুন', formHTML, { size: '4xl' });
 
             document.getElementById('edit-post-form').onsubmit = (e) => handleUpdatePost(e, postId);
             document.getElementById('add-prize-btn').onclick = () => addPrizeField('', '', '#editPostModal');
-            document.querySelectorAll('#editPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.closest('.flex').remove());
-             // ✅ নতুন আইডি যোগ এবং মোছার জন্য ইভেন্ট হ্যান্ডলার
+            document.querySelectorAll('#editPostModal .remove-prize-btn').forEach(btn => btn.onclick = (e) => e.target.closest('div').remove());
             document.getElementById('add-id-type-btn').onclick = () => addIdTypeField('', '#editPostModal');
-            document.querySelectorAll('#editPostModal .remove-id-type-btn').forEach(btn => btn.onclick = (e) => e.target.closest('.flex').remove());
-
+            document.querySelectorAll('#editPostModal .remove-id-type-btn').forEach(btn => btn.onclick = (e) => e.target.closest('div').remove());
             document.getElementById('save-draft-btn').onclick = () => handleSaveDraft('#editPostModal');
             document.getElementById('load-draft-btn').onclick = () => handleLoadDraft('#editPostModal');
-
-            setupPreviewListeners('#editPostModal');
-            renderPreviewFromForm('#editPostModal');
         };
 
         const handleUpdatePost = async (e, postId) => {
@@ -1883,7 +1856,7 @@
             const formData = new FormData(e.target);
             const updatedDetails = {};
             const prizes = [];
-            const requiredIdTypes = []; // ✅ নতুন অ্যারে
+            const requiredIdTypes = [];
             let postStatus = 'active';
             let startTime = '';
             let matchNo = undefined;
@@ -1893,7 +1866,7 @@
                     const index = key.split('_')[2];
                     const amount = formData.get(`prize_amount_${index}`);
                     if(value && amount) prizes.push({ position: value, amount: amount });
-                } else if (key.startsWith('requiredIdType_')) { // ✅ আইডি টাইপ সংগ্রহ করা
+                } else if (key.startsWith('requiredIdType_')) {
                      if(value.trim()) requiredIdTypes.push(value.trim());
                 }
                 else if (key === 'status') {
@@ -1909,7 +1882,7 @@
                 }
             }
             updatedDetails.prizes = prizes;
-            updatedDetails.requiredIdTypes = requiredIdTypes; // ✅ ডেটাতে সেভ করা
+            updatedDetails.requiredIdTypes = requiredIdTypes;
 
             loadingEl.classList.remove('hidden');
             try {
@@ -1954,7 +1927,7 @@
                 body += `<div class="p-3 rounded-lg bg-slate-50 border text-gray-400">কোনো স্ক্রিনশট নেই</div>`;
             }
             body += `</div></div>`;
-            renderModal('playerProofModal', 'প্লেয়ারের প্রুফ', body);
+            renderModal('playerProofModal', 'প্লেয়ারের প্রুফ', body, { size: 'lg' });
         };
 
         const legacyLogoutBtn = document.getElementById('logout-btn');
@@ -2050,7 +2023,7 @@
                         </div>
                     </div>
                 `;
-                renderModal('userProfileModal', 'ইউজার প্রোফাইল', content);
+                renderModal('userProfileModal', 'ইউজার প্রোফাইল', content, { size: 'lg' });
                 // Bind click handlers to open full transaction view
                 setTimeout(() => {
                     document.querySelectorAll('#userProfileModal .tx-row').forEach(row => {
@@ -2130,7 +2103,7 @@
                     </div>
                 </div>
             `;
-            renderModal('trxDetailsFromIndex', 'লেনদেনের বিস্তারিত', details);
+            renderModal('trxDetailsFromIndex', 'লেনদেনের বিস্তারিত', details, { size: 'lg' });
         }
     </script>
 </body>

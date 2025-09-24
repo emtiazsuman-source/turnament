@@ -205,7 +205,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, runTransaction, collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, deleteDoc, updateDoc, increment, orderBy, startAt, endAt, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -287,8 +287,8 @@
                                 <option value="mobile">মোবাইল</option>
                                 <option value="name">নাম</option>
                             </select>
+                            <button id="user-search-btn" class="py-2 px-3 bg-cashpoint-pink text-white rounded-md font-semibold">সার্চ</button>
                         </div>
-                        <button id="user-search-btn" class="w-full py-2 px-3 bg-cashpoint-pink text-white rounded-md font-semibold">সার্চ</button>
                         <p class="text-xs text-gray-500">নোট: নাম দিয়ে সার্চ করলে শুরু অংশ মিলিয়ে ফলাফল দেখাবে। অন্যগুলোতে একদম সঠিক মিল প্রয়োজন।</p>
                     </div>
                     <div id="user-search-results" class="space-y-2"></div>
