@@ -137,6 +137,11 @@ export default async function handler(req, res) {
     } catch (e) {
       contestDetails = {};
     }
+    
+    // ✅ **পরিবর্তন:** অ্যাডমিন জয়েন বাটন নিষ্ক্রিয় করেছে কিনা তা পরীক্ষা করুন
+    if (contestDetails.isJoinDisabled === true) {
+        return res.status(400).json({ message: 'এই মুহূর্তে জয়েন করা সম্ভব না, একটু পর চেষ্টা করুন।' });
+    }
 
     if (postData.status !== 'active') {
       return res.status(400).json({ message: 'এই টুর্নামেন্টটি বর্তমানে সক্রিয় নয়।' });
@@ -178,6 +183,11 @@ export default async function handler(req, res) {
       try {
         cd = typeof p.contestDetails === 'string' ? JSON.parse(p.contestDetails) : p.contestDetails || {};
       } catch {}
+
+      // ✅ **পরিবর্তন:** ট্রানজ্যাকশনের ভিতরেও নিষ্ক্রিয় করা বাটন পরীক্ষা করুন
+      if (cd.isJoinDisabled === true) {
+        throw new Error('এই মুহূর্তে জয়েন করা সম্ভব না, একটু পর চেষ্টা করুন।');
+      }
 
       if (p.status !== 'active') {
         throw new Error('এই টুর্নামেন্টটি বর্তমানে সক্রিয় নয়।');
