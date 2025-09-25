@@ -29,6 +29,14 @@
       "destination": "/cashpoint.html"
     },
     {
+      "source": "/admin-m",
+      "destination": "/admin-m.html"
+    },
+    {
+      "source": "/admin-m/",
+      "destination": "/admin-m.html"
+    },
+    {
       "source": "/cashpoint/",
       "destination": "/cashpoint.html"
     },

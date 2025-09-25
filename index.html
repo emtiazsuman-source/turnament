@@ -387,7 +387,13 @@
                             // Widen layout for admin on PC
                             if (appWrapper) {
                                 appWrapper.classList.remove('max-w-sm');
-                                appWrapper.classList.add('sm:max-w-5xl');
+                                appWrapper.classList.add('sm:max-w-7xl', 'w-full');
+                                appWrapper.classList.remove('sm:max-w-5xl');
+                            }
+                            // Use grid for posts on desktop
+                            if (postsContainerEl) {
+                                postsContainerEl.classList.remove('space-y-4');
+                                postsContainerEl.classList.add('grid','grid-cols-1','md:grid-cols-2','xl:grid-cols-3','gap-4');
                             }
                         } else {
                             adminPostSectionEl.classList.add('hidden');
@@ -395,6 +401,11 @@
                             if (appWrapper) {
                                 appWrapper.classList.add('max-w-sm');
                                 appWrapper.classList.remove('sm:max-w-5xl');
+                                appWrapper.classList.remove('sm:max-w-7xl');
+                            }
+                            if (postsContainerEl) {
+                                postsContainerEl.classList.remove('grid','grid-cols-1','md:grid-cols-2','xl:grid-cols-3','gap-4');
+                                postsContainerEl.classList.add('space-y-4');
                             }
                         }
                         
@@ -1712,7 +1723,7 @@
                         </div>
                     </form>
                 `;
-                renderModal('managePrizesModal', 'পুরস্কার ম্যানেজ করুন', modalContent, { size: '3xl' });
+                renderModal('managePrizesModal', 'পুরস্কার ম্যানেজ করুন', modalContent, { size: '7xl' });
 
                 const prizesHeaderEl = document.querySelector('#managePrizesModal .modal-content header');
                 if (prizesHeaderEl) {

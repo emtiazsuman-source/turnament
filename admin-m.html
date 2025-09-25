@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unified Admin - Cash & Tournament</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script defer src="/_vercel/insights/script.js"></script>
+  
+  <!-- Preload critical resources for admin panels -->
+  <link rel="preload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" as="script" crossorigin>
+  <link rel="preload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" as="script" crossorigin>
+  <link rel="preload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" as="script" crossorigin>
+  
+  <!-- Prefetch admin routes -->
+  <link rel="prefetch" href="/admin">
+  <link rel="prefetch" href="/admin-t">
+  
+  <!-- DNS prefetch for external resources -->
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <style>
+    html, body { height: 100%; }
+    body { background: #f0f2f5; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .app-h { height: 96vh; max-height: 920px; }
+    @media (max-width: 1024px) { .hide-on-small { display: none; } }
+    
+    /* Preload animations and optimizations */
+    iframe {
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+    
+    .preload-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="loading" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="animate-spin w-12 h-12 border-4 rounded-full border-pink-600 border-t-transparent"></div>
+  </div>
+
+  <header class="w-full bg-white shadow-sm border-b sticky top-0 z-40">
+    <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-pink-600 text-white flex items-center justify-center font-extrabold">CP</div>
+        <div>
+          <h1 class="text-lg font-bold text-gray-900">Unified Admin</h1>
+          <p class="text-xs text-gray-500">Manage CashPoint & Tournament from one place</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="admin-name" class="text-sm text-gray-700"></span>
+        <button id="logout-btn" class="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+          <i class="fa-solid fa-right-from-bracket mr-1"></i> লগআউট
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-3 py-3">
+    <div class="grid grid-cols-12 gap-3 app-h">
+      <!-- Left Sidebar -->
+      <aside class="col-span-2 bg-white rounded-xl shadow-sm border p-3 overflow-y-auto no-scrollbar">
+        <div class="mb-3">
+          <div class="text-xs uppercase text-gray-400 font-semibold mb-2">Navigation</div>
+          <nav class="space-y-1">
+            <button id="tab-cash" class="w-full text-left px-3 py-2 rounded-lg font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+              <i class="fa-solid fa-sack-dollar mr-2"></i> Cash Admin
+            </button>
+            <button id="tab-tournament" class="w-full text-left px-3 py-2 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 border">
+              <i class="fa-solid fa-trophy mr-2"></i> Tournament Admin
+            </button>
+          </nav>
+        </div>
+        <div class="mt-4 hide-on-small">
+          <div class="text-xs uppercase text-gray-400 font-semibold mb-2">Quick Actions</div>
+          <div class="grid grid-cols-1 gap-2">
+            <button id="reload-pane" class="w-full px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 border">
+              <i class="fa-solid fa-rotate mr-2"></i> Reload Panel
+            </button>
+            <button id="open-new" class="w-full px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 border">
+              <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Open Current in New Tab
+            </button>
+          </div>
+        </div>
+        <div class="mt-5">
+          <div class="text-xs uppercase text-gray-400 font-semibold mb-2">Cash Shortcuts</div>
+          <div class="grid grid-cols-1 gap-2">
+            <button id="cs-add" class="relative w-full px-3 py-2 text-sm rounded-lg bg-white hover:bg-gray-50 border flex items-center"><i class="fa-solid fa-plus mr-2 text-pink-600"></i> অ্যাড মানি <span id="cs-badge-add" class="hidden absolute right-2 top-1/2 -translate-y-1/2 min-w-[22px] h-[22px] inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[11px] px-1"></span></button>
+            <button id="cs-transfer" class="relative w-full px-3 py-2 text-sm rounded-lg bg-white hover:bg-gray-50 border flex items-center"><i class="fa-solid fa-paper-plane mr-2 text-pink-600"></i> ট্রান্সফার মানি <span id="cs-badge-transfer" class="hidden absolute right-2 top-1/2 -translate-y-1/2 min-w-[22px] h-[22px] inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[11px] px-1"></span></button>
+            <button id="cs-settings" class="w-full px-3 py-2 text-sm rounded-lg bg-white hover:bg-gray-50 border flex items-center"><i class="fa-solid fa-gear mr-2 text-pink-600"></i> সেটিংস</button>
+            <button id="cs-usersearch" class="w-full px-3 py-2 text-sm rounded-lg bg-white hover:bg-gray-50 border flex items-center"><i class="fa-solid fa-magnifying-glass mr-2 text-pink-600"></i> ব্যবহারকারী সার্চ</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <section class="col-span-8 flex flex-col bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+          <div class="flex items-center gap-2">
+            <button id="tabbtn-cash" class="px-3 py-1.5 rounded-md text-sm font-semibold bg-pink-600 text-white">Cash Admin</button>
+            <button id="tabbtn-tournament" class="px-3 py-1.5 rounded-md text-sm font-semibold text-gray-700 hover:bg-gray-100">Tournament Admin</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="status-text" class="text-xs text-gray-500">Ready</span>
+          </div>
+        </div>
+        <div class="relative flex-1">
+          <!-- Preload indicators -->
+          <div id="preload-cash" class="preload-indicator hidden">
+            <div class="flex items-center gap-2 text-sm text-gray-600">
+              <div class="animate-spin w-4 h-4 border-2 rounded-full border-pink-600 border-t-transparent"></div>
+              <span>Loading Cash Admin...</span>
+            </div>
+          </div>
+          <div id="preload-tournament" class="preload-indicator hidden">
+            <div class="flex items-center gap-2 text-sm text-gray-600">
+              <div class="animate-spin w-4 h-4 border-2 rounded-full border-pink-600 border-t-transparent"></div>
+              <span>Loading Tournament Admin...</span>
+            </div>
+          </div>
+          
+          <!-- Two iframes, both preloaded for faster switching -->
+          <iframe id="frame-cash" src="/admin" title="Cash Admin" class="absolute inset-0 w-full h-full border-0" loading="eager"></iframe>
+          <iframe id="frame-tournament" src="/admin-t" title="Tournament Admin" class="absolute inset-0 w-full h-full border-0 hidden" loading="eager"></iframe>
+
+          <!-- Fallback: Cash Admin Embedded -->
+          <div id="fallback-cash" class="absolute inset-0 w-full h-full overflow-y-auto p-3 no-scrollbar hidden">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-bold text-gray-800">Cash Admin (Fallback)</h2>
+              <button id="fb-refresh-cash" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-sm border"><i class="fa-solid fa-rotate mr-2"></i>Refresh</button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div class="bg-white border rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="font-semibold text-gray-800">Pending Add Money</h3>
+                  <span id="fb-count-add" class="text-xs text-gray-500">0</span>
+                </div>
+                <div id="fb-list-add" class="space-y-2"></div>
+              </div>
+              <div class="bg-white border rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="font-semibold text-gray-800">Pending Transfers</h3>
+                  <span id="fb-count-transfer" class="text-xs text-gray-500">0</span>
+                </div>
+                <div id="fb-list-transfer" class="space-y-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fallback: Tournament Admin Embedded -->
+          <div id="fallback-tournament" class="absolute inset-0 w-full h-full overflow-y-auto p-3 no-scrollbar hidden">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-bold text-gray-800">Tournament Admin (Fallback)</h2>
+              <button id="fb-refresh-t" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-sm border"><i class="fa-solid fa-rotate mr-2"></i>Refresh</button>
+            </div>
+            <div id="fb-posts" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel (Optional info) -->
+      <aside class="col-span-2 bg-white rounded-xl shadow-sm border p-3 overflow-y-auto no-scrollbar hide-on-small">
+        <div class="text-xs uppercase text-gray-400 font-semibold mb-2">Info</div>
+        <div class="space-y-2 text-sm text-gray-700">
+          <p>Use the tabs to switch between Cash and Tournament admin panels.</p>
+          <p>Both panels are loaded securely within this unified dashboard.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, getDocs, collection, query, where, orderBy, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCb9v4Q8XsaBKpnopMHE_5_aXEEMkEQork",
+      authDomain: "cashpoint-f8b51.firebaseapp.com",
+      projectId: "cashpoint-f8b51",
+      storageBucket: "cashpoint-f8b51.firebasestorage.app",
+      messagingSenderId: "50891144664",
+      appId: "1:50891144664:web:e90f63977c95c86c04c6ad",
+      measurementId: "G-WJXSMFBEE6"
+    };
+    const appId = "cashpoint-f8b51";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // Register Service Worker for caching
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/admin-sw.js')
+          .then((registration) => {
+            console.log('Admin SW registered:', registration);
+          })
+          .catch((error) => {
+            console.log('Admin SW registration failed:', error);
+          });
+      });
+    }
+
+    const loading = document.getElementById('loading');
+    const logoutBtn = document.getElementById('logout-btn');
+    const adminNameEl = document.getElementById('admin-name');
+    const frameCash = document.getElementById('frame-cash');
+    const frameTournament = document.getElementById('frame-tournament');
+    const preloadCash = document.getElementById('preload-cash');
+    const preloadTournament = document.getElementById('preload-tournament');
+    const tabCash = document.getElementById('tab-cash');
+    const tabTournament = document.getElementById('tab-tournament');
+    const tabBtnCash = document.getElementById('tabbtn-cash');
+    const tabBtnTournament = document.getElementById('tabbtn-tournament');
+    const reloadBtn = document.getElementById('reload-pane');
+    const openNewBtn = document.getElementById('open-new');
+    const statusText = document.getElementById('status-text');
+    // Cash shortcuts
+    const csAdd = document.getElementById('cs-add');
+    const csTransfer = document.getElementById('cs-transfer');
+    const csSettings = document.getElementById('cs-settings');
+    const csUserSearch = document.getElementById('cs-usersearch');
+
+    function setTab(active) {
+      const cashActive = active === 'cash';
+      
+      // Show preload indicator if iframe is not ready
+      if (cashActive && !frameCash.contentDocument) {
+        preloadCash.classList.remove('hidden');
+      } else if (!cashActive && !frameTournament.contentDocument) {
+        preloadTournament.classList.remove('hidden');
+      }
+      // Sidebar state
+      tabCash.classList.toggle('bg-pink-50', cashActive);
+      tabCash.classList.toggle('text-pink-700', cashActive);
+      tabCash.classList.toggle('border-pink-200', cashActive);
+      tabTournament.classList.toggle('bg-pink-50', !cashActive);
+      tabTournament.classList.toggle('text-pink-700', !cashActive);
+      tabTournament.classList.toggle('border-pink-200', !cashActive);
+      // Top tabs
+      tabBtnCash.classList.toggle('bg-pink-600', cashActive);
+      tabBtnCash.classList.toggle('text-white', cashActive);
+      tabBtnCash.classList.toggle('text-gray-700', !cashActive);
+      tabBtnCash.classList.toggle('hover:bg-gray-100', !cashActive);
+      tabBtnTournament.classList.toggle('bg-pink-600', !cashActive);
+      tabBtnTournament.classList.toggle('text-white', !cashActive);
+      tabBtnTournament.classList.toggle('text-gray-700', cashActive);
+      tabBtnTournament.classList.toggle('hover:bg-gray-100', cashActive);
+      // Frames
+      frameCash.classList.toggle('hidden', !cashActive);
+      frameTournament.classList.toggle('hidden', cashActive);
+      // Both iframes are now preloaded, no need to set src dynamically
+      statusText.textContent = cashActive ? 'Cash Admin active' : 'Tournament Admin active';
+      
+      // Hide preload indicators when switching
+      setTimeout(() => {
+        preloadCash.classList.add('hidden');
+        preloadTournament.classList.add('hidden');
+      }, 1000);
+    }
+
+    function reloadCurrent() {
+      const activeIsCash = !frameCash.classList.contains('hidden');
+      (activeIsCash ? frameCash : frameTournament).contentWindow.location.reload();
+    }
+
+    function openCurrentInNew() {
+      const activeIsCash = !frameCash.classList.contains('hidden');
+      const url = activeIsCash ? '/admin' : '/admin-t';
+      window.open(url, '_blank');
+    }
+
+    tabCash.addEventListener('click', () => setTab('cash'));
+    tabTournament.addEventListener('click', () => setTab('tournament'));
+    tabBtnCash.addEventListener('click', () => setTab('cash'));
+    tabBtnTournament.addEventListener('click', () => setTab('tournament'));
+    reloadBtn.addEventListener('click', reloadCurrent);
+    openNewBtn.addEventListener('click', openCurrentInNew);
+    logoutBtn.addEventListener('click', async () => { try { await signOut(auth); } finally { window.location.href = '/login'; } });
+
+    // ---------- Helpers: Modal & Copy ----------
+    function openModal(id, title, bodyHtml) {
+      let wrap = document.getElementById(id);
+      if (wrap) wrap.remove();
+      const html = `
+        <div id="${id}" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b">
+              <h3 class="text-lg font-semibold text-gray-900">${title}</h3>
+              <button class="text-gray-500 hover:text-gray-700" data-close><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-4 max-h-[70vh] overflow-y-auto no-scrollbar">${bodyHtml}</div>
+          </div>
+        </div>`;
+      document.body.insertAdjacentHTML('beforeend', html);
+      const el = document.getElementById(id);
+      el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-close]')) el.remove(); });
+    }
+    function copyText(text) { navigator.clipboard.writeText(text).catch(() => {}); }
+
+    function isCashIframeActive() { return !frameCash.classList.contains('hidden'); }
+    function tryClickInCashFrame(tabId) {
+      try {
+        const docu = frameCash?.contentWindow?.document;
+        const el = docu && docu.getElementById(tabId);
+        if (el) { el.click(); return true; }
+      } catch (_) { /* cross-origin or not ready */ }
+      return false;
+    }
+    function scrollInto(el) { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+    // Cash Shortcuts handlers
+    function handleShortcut(type) {
+      setTab('cash');
+      const iframeOk = isCashIframeActive();
+      if (iframeOk) {
+        const map = {
+          add: 'add-money-tab',
+          transfer: 'transfer-money-tab',
+          settings: 'charge-settings-tab',
+          user: 'user-search-tab'
+        };
+        const clicked = tryClickInCashFrame(map[type]);
+        if (!clicked) statusText.textContent = 'Panel loading… try again';
+      } else {
+        // Fallback: scroll to sections or show info
+        if (type === 'add') scrollInto(document.getElementById('fb-list-add'));
+        else if (type === 'transfer') scrollInto(document.getElementById('fb-list-transfer'));
+        else if (type === 'settings') openModal('infoM', 'সেটিংস', '<div class="p-2">Fallback মোডে সেটিংস পাওয়া যাচ্ছে না।</div>');
+        else if (type === 'user') openModal('infoM', 'ব্যবহারকারী সার্চ', '<div class="p-2">Fallback মোডে ব্যবহারকারী সার্চ পাওয়া যাচ্ছে না।</div>');
+      }
+    }
+
+    if (csAdd) csAdd.addEventListener('click', () => handleShortcut('add'));
+    if (csTransfer) csTransfer.addEventListener('click', () => handleShortcut('transfer'));
+    if (csSettings) csSettings.addEventListener('click', () => handleShortcut('settings'));
+    if (csUserSearch) csUserSearch.addEventListener('click', () => handleShortcut('user'));
+
+    // ---------- Fallback renderers ----------
+    // Real-time pending badges on sidebar
+    let unsubAddPending = null;
+    let unsubTransferPending = null;
+    function subscribeSidebarBadges() {
+      const badgeAdd = document.getElementById('cs-badge-add');
+      const badgeTransfer = document.getElementById('cs-badge-transfer');
+      const setBadge = (el, count) => {
+        if (!el) return;
+        el.dataset.count = String(count);
+        if (count > 0) { el.textContent = count > 99 ? '99+' : String(count); el.classList.remove('hidden'); }
+        else { el.textContent = ''; el.classList.add('hidden'); }
+      };
+      try { if (unsubAddPending) unsubAddPending(); } catch {}
+      try { if (unsubTransferPending) unsubTransferPending(); } catch {}
+      const addCol = collection(db, `artifacts/${appId}/add_money_requests`);
+      const transferCol = collection(db, `artifacts/${appId}/money_transfer_requests`);
+      unsubAddPending = onSnapshot(query(addCol, where('status','==','pending')), (snap) => setBadge(badgeAdd, snap.size));
+      unsubTransferPending = onSnapshot(query(transferCol, where('status','==','pending')), (snap) => setBadge(badgeTransfer, snap.size));
+    }
+    function unsubscribeSidebarBadges(){ try { if (unsubAddPending) unsubAddPending(); } catch {}; try { if (unsubTransferPending) unsubTransferPending(); } catch {}; }
+    async function checkRouteAvailable(path) {
+      try {
+        const res = await fetch(path, { method: 'HEAD' });
+        return res.ok;
+      } catch (_) { return false; }
+    }
+
+    function showCashIframe(show) {
+      frameCash.classList.toggle('hidden', !show);
+      document.getElementById('fallback-cash').classList.toggle('hidden', show);
+    }
+    function showTournamentIframe(show) {
+      frameTournament.classList.toggle('hidden', !show);
+      document.getElementById('fallback-tournament').classList.toggle('hidden', show);
+    }
+
+    // Cash fallback: load pending add money and transfers
+    async function loadCashFallback() {
+      const addWrap = document.getElementById('fb-list-add');
+      const trWrap = document.getElementById('fb-list-transfer');
+      addWrap.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
+      trWrap.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
+      try {
+        const addSnap = await getDocs(query(collection(db, `artifacts/${appId}/add_money_requests`), where('status','==','pending')));
+        const trSnap = await getDocs(query(collection(db, `artifacts/${appId}/money_transfer_requests`), where('status','==','pending')));
+        document.getElementById('fb-count-add').textContent = String(addSnap.size);
+        document.getElementById('fb-count-transfer').textContent = String(trSnap.size);
+        const toRow = (d, type) => {
+          const data = d.data();
+          const amount = Number(data.amount || 0).toFixed(2);
+          const uid = data.userId || data.uid || 'N/A';
+          const createdAt = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleString() : '';
+          return `
+            <div class="p-3 bg-white border rounded-lg flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-semibold text-gray-800">৳ ${amount}</p>
+                <p class="text-xs text-gray-500">UID: <span class="font-mono">${uid}</span></p>
+                <p class="text-[11px] text-gray-400">${createdAt}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="px-2 py-1 text-xs rounded bg-green-600 text-white" data-approve data-type="${type}" data-id="${d.id}">Approve</button>
+                <button class="px-2 py-1 text-xs rounded bg-red-600 text-white" data-reject data-type="${type}" data-id="${d.id}">Reject</button>
+              </div>
+            </div>`;
+        };
+        addWrap.innerHTML = addSnap.size ? addSnap.docs.map(d => toRow(d,'add')).join('') : '<div class="text-center text-gray-400 p-4">No pending add requests</div>';
+        trWrap.innerHTML = trSnap.size ? trSnap.docs.map(d => toRow(d,'transfer')).join('') : '<div class="text-center text-gray-400 p-4">No pending transfers</div>';
+        // Wire actions
+        document.querySelectorAll('[data-approve],[data-reject]').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const el = e.currentTarget;
+            const type = el.dataset.type;
+            const id = el.dataset.id;
+            const col = type === 'add' ? 'add_money_requests' : 'money_transfer_requests';
+            const ref = doc(db, `artifacts/${appId}/${col}/${id}`);
+            const status = el.hasAttribute('data-approve') ? 'approved' : 'rejected';
+            try { await updateDoc(ref, { status }); loadCashFallback(); } catch { /* ignore */ }
+          });
+        });
+      } catch (_) {
+        addWrap.innerHTML = '<div class="text-center text-red-500 p-4">Failed to load</div>';
+        trWrap.innerHTML = '<div class="text-center text-red-500 p-4">Failed to load</div>';
+      }
+    }
+
+    // Tournament fallback: list posts and provide User+ID / Only ID list
+    async function loadTournamentFallback() {
+      const postsEl = document.getElementById('fb-posts');
+      postsEl.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
+      try {
+        const postsCol = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
+        const snap = await getDocs(query(postsCol, orderBy('startTime','asc')));
+        if (!snap.size) { postsEl.innerHTML = '<div class="text-center text-gray-400 p-4">No tournaments</div>'; return; }
+        const card = (p) => {
+          const d = p.data();
+          const title = d.title || 'Tournament';
+          const start = d.startTime && d.startTime.toDate ? d.startTime.toDate().toLocaleString() : '';
+          return `
+            <div class="border rounded-lg p-3 bg-white">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-semibold text-gray-900">${title}</h3>
+                  <p class="text-xs text-gray-500">${start}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="px-2 py-1 text-xs rounded bg-gray-100 border hover:bg-gray-200" data-userid-list data-id="${p.id}"><i class="fa-solid fa-list-ol mr-1"></i>User + ID</button>
+                  <button class="px-2 py-1 text-xs rounded bg-gray-100 border hover:bg-gray-200" data-onlyid-list data-id="${p.id}"><i class="fa-solid fa-list mr-1"></i>Only ID</button>
+                </div>
+              </div>
+            </div>`;
+        };
+        postsEl.innerHTML = snap.docs.map(card).join('');
+        postsEl.querySelectorAll('[data-userid-list]').forEach(btn => btn.addEventListener('click', () => openListModal(btn.dataset.id, true)));
+        postsEl.querySelectorAll('[data-onlyid-list]').forEach(btn => btn.addEventListener('click', () => openListModal(btn.dataset.id, false)));
+      } catch (_) {
+        postsEl.innerHTML = '<div class="text-center text-red-500 p-4">Failed to load tournaments</div>';
+      }
+    }
+
+    async function openListModal(postId, includeNames) {
+      try {
+        const partCol = collection(db, 'artifacts', appId, 'public', 'data', 'posts', postId, 'participants');
+        const snap = await getDocs(query(partCol, orderBy('joinedAt','asc')));
+        let grid = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
+        let textOut = '';
+        let i = 0;
+        for (const d of snap.docs) {
+          i += 1;
+          const pdata = d.data() || {};
+          const name = pdata.fullName || 'Unknown';
+          const ids = pdata.idValues || {};
+          const idHtml = Object.values(ids).map(v => `<p class=\"font-mono text-blue-700 text-sm break-all\">${v}</p>`).join('');
+          const title = includeNames ? `<h4 class=\"font-semibold text-gray-900 truncate\">${name}</h4>` : '';
+          grid += `
+            <div class=\"border rounded-lg p-3 bg-white\">
+              <div class=\"flex items-center gap-3\">
+                <span class=\"px-2 py-0.5 text-xs bg-slate-100 rounded font-bold text-slate-700\">${i}.</span>
+                ${title}
+              </div>
+              <div class=\"${includeNames ? 'pl-11 mt-2 pt-2 border-t border-slate-200' : 'mt-2'} space-y-1\">${idHtml || '<p class=\\"text-xs text-gray-400\\">No info.</p>'}</div>
+            </div>`;
+          const idLines = Object.values(ids).map(v => `- ${v}`).join('\n');
+          textOut += includeNames ? `${i}. - ${name}\n${idLines}\n\n` : `${i}.\n${idLines}\n\n`;
+        }
+        grid += '</div>';
+        const body = `
+          <div class=\"space-y-4\">
+            ${grid}
+            <div class=\"flex gap-2 pt-4 border-t\">
+              <button id=\"mdl-copy\" class=\"w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2\"><i class=\"fa-solid fa-copy\"></i> কপি</button>
+            </div>
+          </div>`;
+        openModal('listModal', includeNames ? 'User + ID List' : 'Only ID List', body);
+        setTimeout(() => {
+          const btn = document.getElementById('mdl-copy');
+          if (btn) btn.addEventListener('click', () => copyText(textOut.trim()));
+        }, 0);
+      } catch (_) {
+        openModal('listModal', 'Error', '<div class="text-red-600">Failed to load list.</div>');
+      }
+    }
+
+    // Enhanced iframe load handlers
+    frameCash.addEventListener('load', () => {
+      preloadCash.classList.add('hidden');
+      console.log('Cash admin loaded');
+    });
+    
+    frameTournament.addEventListener('load', () => {
+      preloadTournament.classList.add('hidden');
+      console.log('Tournament admin loaded');
+    });
+    
+    // Advanced resource preloader
+    function preloadCriticalResources() {
+      const resources = [
+        { url: '/admin', as: 'document' },
+        { url: '/admin-t', as: 'document' },
+        { url: 'https://cdn.tailwindcss.com', as: 'script' },
+        { url: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css', as: 'style' }
+      ];
+      
+      resources.forEach(resource => {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = resource.url;
+        if (resource.as) link.as = resource.as;
+        if (resource.url.includes('https://')) link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+      });
+    }
+    
+    // Preload both iframes immediately
+    function preloadIframes() {
+      // Show indicators
+      preloadCash.classList.remove('hidden');
+      preloadTournament.classList.remove('hidden');
+      
+      // Preload critical resources first
+      preloadCriticalResources();
+      
+      // Add error handling for iframe loading
+      const handleIframeError = (iframe, fallbackId) => {
+        iframe.addEventListener('error', () => {
+          console.warn(`Failed to load ${iframe.src}, switching to fallback`);
+          iframe.classList.add('hidden');
+          document.getElementById(fallbackId).classList.remove('hidden');
+        });
+      };
+      
+      handleIframeError(frameCash, 'fallback-cash');
+      handleIframeError(frameTournament, 'fallback-tournament');
+      
+      // Force load both iframes with timeout
+      setTimeout(() => {
+        if (frameCash.src && frameCash.src !== 'about:blank') {
+          try {
+            frameCash.contentWindow.location.reload();
+          } catch (e) {
+            console.warn('Cash iframe reload failed:', e);
+          }
+        }
+        if (frameTournament.src && frameTournament.src !== 'about:blank') {
+          try {
+            frameTournament.contentWindow.location.reload();
+          } catch (e) {
+            console.warn('Tournament iframe reload failed:', e);
+          }
+        }
+      }, 100);
+    }
+    
+    // Availability check and fallback toggling
+    async function initPanels() {
+      const cashOk = await checkRouteAvailable('/admin');
+      const tOk = await checkRouteAvailable('/admin-t');
+      showCashIframe(cashOk);
+      if (!cashOk) await loadCashFallback();
+      // Tournament iframe is already preloaded with /admin-t
+      showTournamentIframe(tOk);
+      if (!tOk) await loadTournamentFallback();
+
+      // Wire refresh buttons
+      const r1 = document.getElementById('fb-refresh-cash');
+      if (r1) r1.addEventListener('click', loadCashFallback);
+      const r2 = document.getElementById('fb-refresh-t');
+      if (r2) r2.addEventListener('click', loadTournamentFallback);
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = '/login'; return; }
+      try {
+        const uref = doc(db, `artifacts/${appId}/users/${user.uid}`);
+        const snap = await getDoc(uref);
+        const isAdmin = snap.exists() && !!snap.data().isAdmin;
+        adminNameEl.textContent = snap.data()?.fullName || user.email || 'Admin';
+        if (!isAdmin) { window.location.href = '/'; return; }
+        setTab('cash');
+        subscribeSidebarBadges();
+        preloadIframes(); // Preload both iframes immediately
+        await initPanels();
+        
+        // Final optimization: warm up both panels after initial load
+        setTimeout(() => {
+          statusText.textContent = 'Both admin panels preloaded and ready';
+        }, 3000);
+      } catch (e) {
+        console.error(e);
+        window.location.href = '/login';
+      } finally {
+        loading.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
