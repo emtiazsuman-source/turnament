@@ -1730,6 +1730,26 @@
                     onlyIdBtn.innerHTML = '<i class="fas fa-list"></i> Only ID List';
                     prizesHeaderEl.insertBefore(onlyIdBtn, closeBtnEl || null);
 
+                    // Move action buttons to header: Save Progress & Confirm & Distribute
+                    const saveTopBtn = document.createElement('button');
+                    saveTopBtn.id = 'save-progress-btn-top';
+                    saveTopBtn.className = 'ml-auto mr-3 text-sm px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold flex items-center gap-2';
+                    saveTopBtn.innerHTML = '<i class="fas fa-save"></i> Save Progress';
+                    saveTopBtn.addEventListener('click', () => handleSaveDistribution(postId));
+
+                    const confirmTopBtn = document.createElement('button');
+                    confirmTopBtn.id = 'confirm-distribute-btn-top';
+                    confirmTopBtn.className = 'mr-2 text-sm px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center gap-2';
+                    confirmTopBtn.innerHTML = '<i class="fas fa-check"></i> Confirm & Distribute';
+                    confirmTopBtn.addEventListener('click', () => handleConfirmDistribution(postId));
+
+                    prizesHeaderEl.insertBefore(confirmTopBtn, closeBtnEl || null);
+                    prizesHeaderEl.insertBefore(saveTopBtn, confirmTopBtn);
+
+                    // Hide bottom button bar to avoid duplication (keep for compatibility)
+                    const bottomBar = document.querySelector('#managePrizesModal #prize-distribution-form > div');
+                    if (bottomBar) bottomBar.classList.add('hidden');
+
                     userIdBtn.addEventListener('click', () => {
                         const nameLinks = Array.from(document.querySelectorAll('#managePrizesModal .user-name-link'));
                         if (!nameLinks.length) return;
@@ -1813,20 +1833,83 @@
 
                         const body = `
                             <div class="space-y-4 bg-gradient-to-b from-slate-900 to-slate-800 p-2 rounded-md">
-                                <div>${gridHTML}</div>
-                                <div class="flex gap-2 pt-4 border-t border-slate-700">
-                                    <button id="copy-onlyid-list" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
-                                        <i class="fas fa-copy"></i> আইডি লিস্ট কপি
-                                    </button>
-                                </div>
+                                <div id="only-id-grid" class="p-1">${gridHTML}</div>
                             </div>`;
 
                         renderModal('onlyIdListModal', 'শুধু আইডি তালিকা', body, { size: '4xl' });
 
-                        setTimeout(() => {
-                            const copyBtn = document.getElementById('copy-onlyid-list');
-                            if (copyBtn) copyBtn.onclick = () => copyToClipboard(plainTextList.trim());
-                        }, 0);
+                        // Inject top-right header buttons: Copy and Download Photo (preview + download)
+                        const headerEl = document.querySelector('#onlyIdListModal .modal-content header');
+                        if (headerEl) {
+                            // Helper to load html2canvas lazily
+                            const loadHtml2Canvas = () => new Promise((resolve, reject) => {
+                                if (window.html2canvas) return resolve();
+                                const s = document.createElement('script');
+                                s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                                s.onload = () => resolve();
+                                s.onerror = () => reject(new Error('html2canvas load failed'));
+                                document.head.appendChild(s);
+                            });
+
+                            const copyTopBtn = document.createElement('button');
+                            copyTopBtn.className = 'ml-auto mr-3 text-sm px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-semibold flex items-center gap-2';
+                            copyTopBtn.innerHTML = '<i class="fas fa-copy"></i> কপি';
+                            copyTopBtn.addEventListener('click', () => copyToClipboard(plainTextList.trim()));
+
+                            const downloadBtn = document.createElement('button');
+                            downloadBtn.className = 'mr-2 text-sm px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2';
+                            downloadBtn.innerHTML = '<i class="fas fa-image"></i> ডাউনলোড ফটো';
+                            downloadBtn.addEventListener('click', async () => {
+                                try {
+                                    await loadHtml2Canvas();
+                                    const target = document.querySelector('#onlyIdListModal #only-id-grid');
+                                    if (!target) return;
+                                    const canvas = await window.html2canvas(target, { backgroundColor: '#0f172a', scale: 2, useCORS: true });
+                                    const dataUrl = canvas.toDataURL('image/png');
+                                    const previewBody = `
+                                        <div class="space-y-4">
+                                            <img src="${dataUrl}" alt="preview" class="w-full rounded-lg border border-slate-200 bg-white"/>
+                                        </div>`;
+                                    renderModal('onlyIdPreviewModal', 'প্রিভিউ', previewBody, { size: '4xl' });
+                                    // Add Download and Share buttons to the preview header
+                                    const pHeader = document.querySelector('#onlyIdPreviewModal .modal-content header');
+                                    if (pHeader) {
+                                        const makeBtn = (cls, html) => { const b = document.createElement('button'); b.className = cls; b.innerHTML = html; return b; };
+                                        const closeEl = pHeader.querySelector('.close-button');
+
+                                        const downloadTopBtn = makeBtn('ml-auto mr-3 text-sm px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2', '<i class="fas fa-download"></i> ডাউনলোড');
+                                        downloadTopBtn.addEventListener('click', () => {
+                                            const a = document.createElement('a');
+                                            a.href = dataUrl; a.download = 'only-id-list.png';
+                                            document.body.appendChild(a); a.click(); a.remove();
+                                        });
+
+                                        const shareBtn = makeBtn('mr-2 text-sm px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2', '<i class="fas fa-share-alt"></i> শেয়ার');
+                                        shareBtn.addEventListener('click', async () => {
+                                            try {
+                                                const res = await fetch(dataUrl);
+                                                const blob = await res.blob();
+                                                const file = new File([blob], 'only-id-list.png', { type: 'image/png' });
+                                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                                    await navigator.share({ files: [file], title: 'Only ID List', text: 'Only ID List' });
+                                                } else {
+                                                    // Fallback: open image in a new tab
+                                                    const url = URL.createObjectURL(blob);
+                                                    window.open(url, '_blank');
+                                                }
+                                            } catch (_) { showMessage('শেয়ার করতে সমস্যা হয়েছে।', 'error'); }
+                                        });
+
+                                        pHeader.insertBefore(shareBtn, closeEl || null);
+                                        pHeader.insertBefore(downloadTopBtn, shareBtn);
+                                    }
+                                } catch (_) { showMessage('প্রিভিউ তৈরি করতে সমস্যা হয়েছে।', 'error'); }
+                            });
+
+                            const closeBtn = headerEl.querySelector('.close-button');
+                            headerEl.insertBefore(downloadBtn, closeBtn || null);
+                            headerEl.insertBefore(copyTopBtn, downloadBtn);
+                        }
                     });
                 }
 
