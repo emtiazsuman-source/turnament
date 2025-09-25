@@ -231,6 +231,8 @@
             messageText.textContent = text;
             setTimeout(() => messageBox.classList.add('hidden'), 3000);
         };
+        // Make showMessage globally accessible for inline onclick handlers
+        window.showMessage = showMessage;
 
         const renderModal = (id, title, content, options = {}) => {
             const { size = 'lg', onClose = () => {} } = options;
@@ -662,14 +664,26 @@
                 : `৳<span data-field="entryFee">${entryFeeValue}</span>`;
 
             const remainingSpots = Math.max((Number(contestDetails.maxPlayers || 0)) - slotsUsedTotal, 0);
-            const canJoin = (currentUserRole === 'user') && !hasJoined && !isFull && (remainingSpots >= slotsPerParticipant);
-            const joinButtonHTML = `
-                <div class="flex-shrink-0">
-                    ${canJoin ? `<button class="progress-join-btn px-6 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">Join</button>` : ''}
-                    ${hasJoined ? `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>Joined</button>` : ''}
-                    ${isFull && !hasJoined ? `<button class="px-6 py-2 text-sm font-semibold bg-red-400 text-white rounded-lg cursor-not-allowed" disabled>Full</button>` : ''}
-                </div>`;
             
+            // ✅ **পরিবর্তন:** জয়েন বাটন দেখানোর জন্য নতুন লজিক প্রয়োগ
+            const isJoinDisabledByAdmin = contestDetails.isJoinDisabled === true;
+            const canJoin = (currentUserRole === 'user') && !hasJoined && !isFull && (remainingSpots >= slotsPerParticipant);
+
+            let joinButtonHTML;
+            if (hasJoined) {
+                joinButtonHTML = `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>Joined</button>`;
+            } else if (isJoinDisabledByAdmin) {
+                joinButtonHTML = `<button onclick="showMessage('এই মুহূর্তে জয়েন করা সম্ভব না, একটু পর চেষ্টা করুন', 'error')" class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed">Join</button>`;
+            } else if (isFull) {
+                joinButtonHTML = `<button class="px-6 py-2 text-sm font-semibold bg-red-400 text-white rounded-lg cursor-not-allowed" disabled>Full</button>`;
+            } else if (canJoin) {
+                joinButtonHTML = `<button class="progress-join-btn px-6 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">Join</button>`;
+            } else {
+                // অপর্যাপ্ত স্লটের মতো অন্যান্য কারণের জন্য ফলব্যাক
+                joinButtonHTML = `<button class="px-6 py-2 text-sm font-semibold bg-gray-400 text-white rounded-lg cursor-not-allowed" disabled>Enable</button>`;
+            }
+
+            const renderedJoinButton = `<div class="flex-shrink-0">${joinButtonHTML}</div>`;
             const liveLink = contestDetails.liveLink;
 
             postElement.innerHTML = `
@@ -725,7 +739,7 @@
                                 <span id="participants-${post.id}">${slotsUsedTotal}/${contestDetails.maxPlayers}</span>
                             </div>
                         </div>
-                        ${joinButtonHTML}
+                        ${renderedJoinButton}
                     </div>
                     ${actionSectionHTML}
                 </div>
@@ -1221,6 +1235,8 @@
                 }
             });
 
+            // ✅ **পরিবর্তন:** d.isJoinDisabled ডিফল্ট false করা হয়েছে, যদি এর কোনো মান না থাকে
+            const isJoinDisabled = d.isJoinDisabled === true;
 
             return `
                 <form id="${formId}" class="space-y-6">
@@ -1246,13 +1262,22 @@
                                     <input type="number" name="maxPlayers" placeholder="50" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="${d.maxPlayers || ''}">
                                 </div>
                             </div>
-                            <div class="flex flex-col">
-                                <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস (Status) <span class="text-red-500">*</span></label>
-                                <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                    <option value="active" ${d.status === 'active' ? 'selected' : ''}>Active</option>
-                                    <option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>Inactive</option>
-                                    <option value="complete" ${d.status === 'complete' ? 'selected' : ''}>Complete</option>
-                                </select>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">স্ট্যাটাস (Status) <span class="text-red-500">*</span></label>
+                                    <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        <option value="active" ${d.status === 'active' ? 'selected' : ''}>Active</option>
+                                        <option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                                        <option value="complete" ${d.status === 'complete' ? 'selected' : ''}>Complete</option>
+                                    </select>
+                                </div>
+                                 <div class="flex flex-col">
+                                    <label class="text-xs text-gray-600 mb-1">জয়েন বাটন (Join Button) <span class="text-red-500">*</span></label>
+                                    <select name="isJoinDisabled" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        <option value="false" ${!isJoinDisabled ? 'selected' : ''}>Enabled</option>
+                                        <option value="true" ${isJoinDisabled ? 'selected' : ''}>Disabled</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="flex flex-col">
                                 <label class="text-xs text-gray-600 mb-1">Match No (ঐচ্ছিক)</label>
@@ -1559,7 +1584,12 @@
                     matchNo = value ? parseInt(value, 10) : undefined;
                 }
                  else {
-                    contestDetails[key] = value;
+                    // ✅ **পরিবর্তন:** 'isJoinDisabled' স্ট্রিং ('true'/'false') থেকে বুলিয়ানে রূপান্তর
+                    if (key === 'isJoinDisabled') {
+                        contestDetails[key] = (value === 'true');
+                    } else {
+                        contestDetails[key] = value;
+                    }
                 }
             }
             contestDetails.prizes = prizes;
@@ -1968,7 +1998,12 @@
                     matchNo = value ? parseInt(value, 10) : undefined;
                 }
                  else {
-                    updatedDetails[key] = value;
+                    // ✅ **পরিবর্তন:** 'isJoinDisabled' স্ট্রিং ('true'/'false') থেকে বুলিয়ানে রূপান্তর
+                    if (key === 'isJoinDisabled') {
+                        updatedDetails[key] = (value === 'true');
+                    } else {
+                        updatedDetails[key] = value;
+                    }
                 }
             }
             updatedDetails.prizes = prizes;
