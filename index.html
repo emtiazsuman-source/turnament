@@ -1667,7 +1667,7 @@
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="flex-1">
                                         <div class="flex items-center gap-3">
-                                            <span class="font-bold text-sm text-slate-500 px-2 py-0.5 bg-slate-100 rounded">Position NO: ${index + 1}</span>
+                                            <span class="font-bold text-sm text-slate-500 px-2 py-0.5 bg-slate-100 rounded">${index + 1}.</span>
                                             <p class="font-semibold text-gray-800"><span class="user-name-link text-blue-600 hover:underline cursor-pointer" data-userid="${doc.id}" data-idvalues='${idValuesString}'>${player.fullName}</span></p>
                                         </div>
                                         <div class="mt-1 pl-8 space-y-1">${idDisplayHTML}</div>
@@ -1723,6 +1723,13 @@
                     const closeBtnEl = prizesHeaderEl.querySelector('.close-button');
                     prizesHeaderEl.insertBefore(userIdBtn, closeBtnEl || null);
 
+                    // Add Only ID List button
+                    const onlyIdBtn = document.createElement('button');
+                    onlyIdBtn.id = 'apply-only-id-btn';
+                    onlyIdBtn.className = 'mr-4 text-sm px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-semibold flex items-center gap-2';
+                    onlyIdBtn.innerHTML = '<i class="fas fa-list"></i> Only ID List';
+                    prizesHeaderEl.insertBefore(onlyIdBtn, closeBtnEl || null);
+
                     userIdBtn.addEventListener('click', () => {
                         const nameLinks = Array.from(document.querySelectorAll('#managePrizesModal .user-name-link'));
                         if (!nameLinks.length) return;
@@ -1741,7 +1748,7 @@
                             gridHTML += `
                                 <div class="border rounded-lg p-3 bg-white shadow-sm flex flex-col">
                                     <div class="flex items-center gap-3">
-                                        <span class="flex-shrink-0 font-bold text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded">Position NO: ${i + 1}</span>
+                                        <span class="flex-shrink-0 font-bold text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded">${i + 1}.</span>
                                         <h3 class="font-semibold text-base text-gray-900 truncate">${name}</h3>
                                     </div>
                                     <div class="pl-11 mt-2 pt-2 border-t border-slate-200 space-y-1">
@@ -1751,7 +1758,7 @@
                             `;
                             
                             const plainTextIds = Object.entries(ids).map(([key, val]) => `- ${val} (${key})`);
-                            plainTextList += `Position NO: ${i + 1} - ${name}\n${plainTextIds.join('\n')}\n\n`;
+                            plainTextList += `${i + 1}. - ${name}\n${plainTextIds.join('\n')}\n\n`;
                         });
                         gridHTML += '</div>';
 
@@ -1768,6 +1775,54 @@
                         
                         setTimeout(() => {
                             const copyBtn = document.getElementById('copy-userid-list');
+                            if (copyBtn) copyBtn.onclick = () => copyToClipboard(plainTextList.trim());
+                        }, 0);
+                    });
+
+                    // Only ID List modal (no names)
+                    onlyIdBtn.addEventListener('click', () => {
+                        const nameLinks = Array.from(document.querySelectorAll('#managePrizesModal .user-name-link'));
+                        if (!nameLinks.length) return;
+
+                        let gridHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">';
+                        let plainTextList = '';
+
+                        nameLinks.forEach((el, i) => {
+                            const ids = JSON.parse(el.dataset.idvalues || '{}');
+                            const idValuesHTML = Object.entries(ids)
+                                .map(([key, val]) => `<p class="font-mono text-blue-700 text-sm break-all">${val}</p>`)
+                                .join('');
+
+                            gridHTML += `
+                                <div class="border rounded-lg p-3 bg-white shadow-sm flex flex-col">
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex-shrink-0 font-bold text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded">${i + 1}.</span>
+                                    </div>
+                                    <div class="pl-11 mt-2 pt-2 border-t border-slate-200 space-y-1">
+                                        ${idValuesHTML || '<p class="text-xs text-gray-400">No info.</p>'}
+                                    </div>
+                                </div>
+                            `;
+
+                            const plainTextIds = Object.entries(ids).map(([key, val]) => `- ${val}`);
+                            plainTextList += `${i + 1}.\n${plainTextIds.join('\n')}\n\n`;
+                        });
+                        gridHTML += '</div>';
+
+                        const body = `
+                            <div class="space-y-4">
+                                <div>${gridHTML}</div>
+                                <div class="flex gap-2 pt-4 border-t">
+                                    <button id="copy-onlyid-list" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+                                        <i class="fas fa-copy"></i> আইডি লিস্ট কপি
+                                    </button>
+                                </div>
+                            </div>`;
+
+                        renderModal('onlyIdListModal', 'শুধু আইডি তালিকা', body, { size: '4xl' });
+
+                        setTimeout(() => {
+                            const copyBtn = document.getElementById('copy-onlyid-list');
                             if (copyBtn) copyBtn.onclick = () => copyToClipboard(plainTextList.trim());
                         }, 0);
                     });
