@@ -623,10 +623,8 @@
                     actionSectionHTML = `<div id="action-container-${post.id}" class="mt-2"></div>`;
                 }
             } else if (currentUserRole === 'admin') {
-                 let viewPlayerButtonClass = 'bg-indigo-500 hover:bg-indigo-600';
-                 if (post.status === 'prizes_distributed') {
-                    viewPlayerButtonClass = 'bg-gray-400 cursor-not-allowed';
-                 }
+                // Always allow viewing players even after distribution
+                const viewPlayerButtonClass = 'bg-indigo-500 hover:bg-indigo-600';
                 actionSectionHTML = `
                     <div class="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm">
                         <p class="font-semibold text-blue-800 flex justify-between items-center">রুম আইডি: <code class="bg-blue-200 text-blue-900 px-2 py-1 rounded">${contestDetails.roomId}</code> <i onclick="copyToClipboard('${contestDetails.roomId}')" class="fas fa-copy cursor-pointer text-gray-500 ml-2"></i></p>
@@ -814,12 +812,8 @@
 
             if (currentUserRole === 'admin') {
                 const viewPlayersBtn = postElement.querySelector('.view-players-btn');
-                if (post.status === 'prizes_distributed') {
-                    viewPlayersBtn.disabled = true;
-                    viewPlayersBtn.textContent = 'বিতরণ সম্পন্ন';
-                } else {
-                    viewPlayersBtn.onclick = () => viewPlayersModal(post.id);
-                }
+                // Always allow viewing players (for audit after distribution)
+                if (viewPlayersBtn) viewPlayersBtn.onclick = () => viewPlayersModal(post.id);
                 postElement.querySelector('.edit-post-btn').onclick = () => editPostModal(post.id);
                 postElement.querySelector('.delete-post-btn').onclick = () => deletePost(post.id);
 

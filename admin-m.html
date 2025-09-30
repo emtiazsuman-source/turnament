@@ -473,6 +473,7 @@
                   <p class="text-xs text-gray-500">${start}</p>
                 </div>
                 <div class="flex items-center gap-2">
+                  <button class="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700" data-view-players data-id="${p.id}"><i class="fa-solid fa-users mr-1"></i>প্লেয়ার দেখুন</button>
                   <button class="px-2 py-1 text-xs rounded bg-gray-100 border hover:bg-gray-200" data-userid-list data-id="${p.id}"><i class="fa-solid fa-list-ol mr-1"></i>User + ID</button>
                   <button class="px-2 py-1 text-xs rounded bg-gray-100 border hover:bg-gray-200" data-onlyid-list data-id="${p.id}"><i class="fa-solid fa-list mr-1"></i>Only ID</button>
                 </div>
@@ -480,6 +481,7 @@
             </div>`;
         };
         postsEl.innerHTML = snap.docs.map(card).join('');
+        postsEl.querySelectorAll('[data-view-players]').forEach(btn => btn.addEventListener('click', () => openListModal(btn.dataset.id, true)));
         postsEl.querySelectorAll('[data-userid-list]').forEach(btn => btn.addEventListener('click', () => openListModal(btn.dataset.id, true)));
         postsEl.querySelectorAll('[data-onlyid-list]').forEach(btn => btn.addEventListener('click', () => openListModal(btn.dataset.id, false)));
       } catch (_) {

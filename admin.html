@@ -607,6 +607,16 @@
             return hash;
         }
 
+        // Generate a 9-character alphanumeric (A-Z,0-9) transaction ID
+        function generateTransactionId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 9; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
         // --- Admin Panel UI ---
         function renderAdminDashboard() {
             const headerH1 = document.querySelector('#header h1');
@@ -1018,7 +1028,32 @@
                     <p class="text-sm text-gray-700"><span class="font-semibold">নাম:</span> ${user.fullName || 'N/A'}</p>
                     <p class="text-sm text-gray-700"><span class="font-semibold">মোবাইল:</span> ${user.mobile || 'N/A'}</p>
                     <p class="text-sm text-gray-700"><span class="font-semibold">ইউজার আইডি:</span> <span class="font-mono">${userId}</span></p>
-                    <p class="text-sm text-gray-700"><span class="font-semibold">ব্যালেন্স:</span> ৳ ${(user.balance || 0).toFixed(2)}</p>
+                    <p id="profile-balance" class="text-sm text-gray-700 flex items-center gap-2">
+                        <span class="font-semibold">ব্যালেন্স:</span>
+                        <span id="profile-balance-value">৳ ${(user.balance || 0).toFixed(2)}</span>
+                        <button id="balance-edit-btn" class="ml-1 text-cashpoint-pink hover:text-pink-700" title="ব্যালেন্স এডিট"><i class="fas fa-pen"></i></button>
+                    </p>
+                `;
+
+                // Admin balance adjust box
+                const adjustBox = document.createElement('div');
+                adjustBox.className = 'bg-white rounded-lg p-3 border';
+                adjustBox.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-gray-800">ব্যালেন্স এডজাস্ট (অ্যাড/ডেবিট)</h4>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <div class="flex items-center gap-2">
+                            <select id="adj-type" class="px-2 py-1 border rounded-md text-sm">
+                                <option value="credit">ক্রেডিট (+)</option>
+                                <option value="debit">ডেবিট (-)</option>
+                            </select>
+                            <input id="adj-amount" type="number" step="0.01" min="0" placeholder="পরিমাণ" class="flex-1 px-2 py-1 border rounded-md text-sm" />
+                        </div>
+                        <input id="adj-note" type="text" placeholder="নোট (ঐচ্ছিক)" class="px-2 py-1 border rounded-md text-sm" />
+                        <button id="adj-submit" class="px-3 py-2 bg-cashpoint-pink text-white rounded-md text-sm">আপডেট করুন</button>
+                        <p class="text-[12px] text-gray-500">এই এডজাস্টমেন্টটি ট্রানজেকশন হিস্টরিতে "admin_adjust" হিসেবে সংরক্ষণ হবে।</p>
+                    </div>
                 `;
 
                 // Transactions list styled like /statement
@@ -1121,7 +1156,7 @@
                 }
                 listWrap.append(listTitle, listEl);
 
-                container.append(headerDiv, profileBox, listWrap);
+                container.append(headerDiv, profileBox, adjustBox, listWrap);
                 modalContent.appendChild(container);
                 modal.classList.remove('hidden');
                 setTimeout(() => modalContent.classList.add('scale-100'), 10);
@@ -1131,6 +1166,42 @@
                     setTimeout(() => modal.classList.add('hidden'), 200);
                 };
                 document.getElementById('close-user-profile-modal').addEventListener('click', close, { once: true });
+                // Balance edit icon action
+                const editBtn = profileBox.querySelector('#balance-edit-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => {
+                        const amt = adjustBox.querySelector('#adj-amount');
+                        adjustBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(() => amt?.focus(), 300);
+                    });
+                }
+                // Adjust submit handler
+                const adjBtn = adjustBox.querySelector('#adj-submit');
+                adjBtn.addEventListener('click', async () => {
+                    const type = adjustBox.querySelector('#adj-type').value;
+                    const amtStr = adjustBox.querySelector('#adj-amount').value;
+                    const note = adjustBox.querySelector('#adj-note').value?.trim() || '';
+                    const amount = Number(amtStr);
+                    if (!amtStr || isNaN(amount) || amount <= 0) { showMessage('সঠিক পরিমাণ লিখুন'); return; }
+                    try {
+                        showLoading(true);
+                        await adjustUserBalance(userId, amount, type === 'credit', note);
+                        const balValueEl = document.getElementById('profile-balance-value');
+                        const cur = Number((user.balance || 0));
+                        const delta = type === 'credit' ? amount : -amount;
+                        const next = (cur + delta).toFixed(2);
+                        if (balValueEl) balValueEl.textContent = `৳ ${next}`;
+                        user.balance = Number(next);
+                        showMessage('ব্যালেন্স আপডেট হয়েছে');
+                        adjustBox.querySelector('#adj-amount').value = '';
+                        adjustBox.querySelector('#adj-note').value = '';
+                    } catch (e) {
+                        console.error(e);
+                        showMessage('আপডেট ব্যর্থ হয়েছে');
+                    } finally {
+                        showLoading(false);
+                    }
+                });
                 modal.addEventListener('click', (e) => { if (e.target.id === 'transaction-details-modal') close(); }, { once: true });
             } catch (err) {
                 console.error('Failed to load user profile:', err);
@@ -1138,6 +1209,22 @@
             } finally {
                 showLoading(false);
             }
+        }
+
+        async function adjustUserBalance(userId, amount, isCredit, note) {
+            const userRef = doc(db, `artifacts/${appId}/users/${userId}`);
+            const delta = isCredit ? amount : -amount;
+            await updateDoc(userRef, { balance: increment(delta) });
+            const txRef = collection(db, `artifacts/${appId}/users/${userId}/transactions`);
+            const transactionId = generateTransactionId();
+            await addDoc(txRef, {
+                type: 'admin_adjust',
+                status: 'success',
+                amount: delta,
+                description: `${isCredit ? 'Admin Credit' : 'Admin Debit'}${note ? ' - ' + note : ''}`,
+                transactionId,
+                timestamp: serverTimestamp()
+            });
         }
 
         // Render a full transaction details view in the modal (from user profile transaction list)
